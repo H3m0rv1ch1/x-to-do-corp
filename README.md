@@ -3,7 +3,7 @@
 A sleek, X-inspired to-do list app with modern UI, keyboard shortcuts, and optional AI assistance (Gemini) to help you plan faster.
 
 <p align="center">
-  <img src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" alt="Project banner" width="100%" />
+  <img src="./favicon.svg" alt="X To-Do Corp Logo" width="128" height="128" />
 </p>
 
 ## Features
