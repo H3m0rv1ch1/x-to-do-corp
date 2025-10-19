@@ -1,6 +1,7 @@
 
 import React from 'react';
-import { Home as HomeIcon, Bell as BellIcon, User as UserIcon, MoreHorizontal as MoreIcon, BadgeCheck as VerifiedIcon, Trophy as TrophyIcon, Calendar as CalendarIcon, Star as StarIcon, StickyNote as NoteIcon, Settings as SettingsIcon } from 'lucide-react';
+import { MoreHorizontal as MoreIcon, BadgeCheck as VerifiedIcon } from 'lucide-react';
+import { House as HomeIcon, Bell as BellIcon, User as UserIcon, Note as NoteIcon, Trophy as TrophyIcon, CalendarBlank as CalendarIcon, Star as StarIcon, Gear as SettingsIcon } from 'phosphor-react';
 import { Avatar } from './Avatar';
 import { useAppContext } from '../hooks/useAppContext';
 
@@ -30,9 +31,8 @@ const LeftSidebar: React.FC = () => {
                             {navItems.map((item, index) => {
                                 const isActive = page === item.page && (item.page !== 'home' || !('filter' in item) || item.filter === filter);
                                 const Icon = item.icon;
-                                const iconProps = {
-                                    className: "w-7 h-7",
-                                } as React.SVGProps<SVGSVGElement>;
+                                const iconColor = isActive ? '#fff' : `rgba(var(--foreground-primary-rgb))`;
+                                const iconWeight = isActive ? 'fill' : 'regular';
 
                                 return (
                                     <li key={index}>
@@ -48,9 +48,9 @@ const LeftSidebar: React.FC = () => {
                                             className="flex items-center space-x-5 p-3 rounded-full transition-colors duration-200 hover:bg-[rgba(var(--foreground-primary-rgb),0.1)] w-fit"
                                         >
                                             <div>
-                                                <Icon {...iconProps} />
+                                                <Icon size={28} weight={iconWeight} color={iconColor} />
                                             </div>
-                                            <span className={`text-xl ${isActive ? 'font-bold' : ''} text-[rgba(var(--foreground-primary-rgb))] w-32`}>{item.text}</span>
+                                            <span className={`text-xl ${isActive ? 'font-bold text-white' : 'text-[rgba(var(--foreground-primary-rgb))]'} w-32`}>{item.text}</span>
                                         </a>
                                     </li>
                                 );
