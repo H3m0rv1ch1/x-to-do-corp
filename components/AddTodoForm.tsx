@@ -1,15 +1,17 @@
 import React, { useState, useRef, useId } from 'react';
 import { GoogleGenAI } from '@google/genai';
 import { Avatar } from './Avatar';
-import { Sparkles as SparkleIcon, Image as ImageIcon, Calendar as CalendarIcon, Bell as BellIcon, Repeat as RepeatIcon, X as CloseIcon, ListTodo as SubtaskIcon, Hash as HashIcon, Flag as FlagIcon } from 'lucide-react';
+import { Sparkles as SparkleIcon, Image as ImageIcon, Calendar as CalendarIcon, Bell as BellIcon, Repeat as RepeatIcon, X as CloseIcon, ListTodo as SubtaskIcon, Hash as HashIcon, Flag as FlagIcon, MoreHorizontal as MoreIcon } from 'lucide-react';
 import { type UserProfile, type RecurrenceType, type Priority } from '../types';
 
 import DatePicker from './DatePicker';
 import RecurrencePicker from './RecurrencePicker';
 import ReminderPicker from './ReminderPicker';
 import useClickOutside from '../hooks/useClickOutside';
+import { useAppContext } from '../hooks/useAppContext';
 
 import PriorityPicker from './PriorityPicker';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 
 interface AddTodoFormProps {
   onAddTodo: (todoData: { text: string; imageUrl: string | null; dueDate: string | null; priority: Priority; subtasks: string[], tags: string[], recurrenceRule: { type: RecurrenceType } | null, reminderOffset: number | null }) => void;
@@ -44,11 +46,24 @@ const AddTodoForm: React.FC<AddTodoFormProps> = ({ onAddTodo, userProfile, onTas
   const recurrencePickerRef = useRef<HTMLDivElement>(null);
   const [isReminderPickerOpen, setIsReminderPickerOpen] = useState(false);
   const reminderPickerRef = useRef<HTMLDivElement>(null);
+  const [openReminderAfterDate, setOpenReminderAfterDate] = useState(false);
+  const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
+  const moreMenuRef = useRef<HTMLDivElement>(null);
+
+  const { notificationPermission, requestNotificationPermission } = useAppContext();
 
   useClickOutside(datePickerRef, () => setIsDatePickerOpen(false));
   useClickOutside(priorityPickerRef, () => setIsPriorityPickerOpen(false));
   useClickOutside(recurrencePickerRef, () => setIsRecurrencePickerOpen(false));
   useClickOutside(reminderPickerRef, () => setIsReminderPickerOpen(false));
+  useClickOutside(moreMenuRef, () => setIsMoreMenuOpen(false));
+
+  React.useEffect(() => {
+    if (openReminderAfterDate && dueDate) {
+      setIsReminderPickerOpen(true);
+      setOpenReminderAfterDate(false);
+    }
+  }, [openReminderAfterDate, dueDate]);
 
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -273,78 +288,98 @@ const AddTodoForm: React.FC<AddTodoFormProps> = ({ onAddTodo, userProfile, onTas
           {imageError && <p className="text-[rgba(var(--danger-rgb))] text-sm mt-2">{imageError}</p>}
           {error && <p className="text-[rgba(var(--danger-rgb))] text-sm mt-2">{error}</p>}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between pt-2 border-t border-[rgba(var(--border-primary-rgb))] mt-2">
-            <div className="flex items-center space-x-1">
-               <label htmlFor={imageUploadId} className="p-2 rounded-full text-[rgba(var(--accent-rgb))] hover:bg-[rgba(var(--accent-rgb),0.1)] transition-colors duration-200 cursor-pointer" aria-label="Add image" title="Add image">
-                  <ImageIcon className="w-5 h-5" />
-              </label>
-               <input type="file" id={imageUploadId} accept="image/*" onChange={handleImageSelect} className="sr-only" />
-               <div className="relative" ref={datePickerRef}>
-                <button
-                  type="button"
-                  onClick={() => setIsDatePickerOpen(prev => !prev)}
-                  className="p-2 rounded-full text-[rgba(var(--accent-rgb))] hover:bg-[rgba(var(--accent-rgb),0.1)] transition-colors duration-200 cursor-pointer"
-                  title="Set due date"
-                  aria-haspopup="true"
-                  aria-expanded={isDatePickerOpen}
-                >
-                    <CalendarIcon className="w-5 h-5" />
-                </button>
-                 <DatePicker 
+            <TooltipProvider delayDuration={150}>
+              <div className="flex items-center space-x-1">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <label htmlFor={imageUploadId} className="p-2 rounded-full text-[rgba(var(--accent-rgb))] hover:bg-[rgba(var(--accent-rgb),0.1)] transition-colors duration-200 cursor-pointer" aria-label="Add image">
+                      <ImageIcon className="w-5 h-5" />
+                    </label>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Add image</p>
+                  </TooltipContent>
+                </Tooltip>
+                <input type="file" id={imageUploadId} accept="image/*" onChange={handleImageSelect} className="sr-only" />
+                <div className="relative" ref={datePickerRef}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        type="button"
+                        onClick={() => setIsDatePickerOpen(prev => !prev)}
+                        className="p-2 rounded-full text-[rgba(var(--accent-rgb))] hover:bg-[rgba(var(--accent-rgb),0.1)] transition-colors duration-200 cursor-pointer"
+                        aria-haspopup="true"
+                        aria-expanded={isDatePickerOpen}
+                      >
+                        <CalendarIcon className="w-5 h-5" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Set due date</p>
+                    </TooltipContent>
+                  </Tooltip>
+                  <DatePicker 
                     isOpen={isDatePickerOpen}
                     onClose={() => setIsDatePickerOpen(false)}
                     onSelectDate={handleDateSelect}
                     selectedDate={dueDate ? new Date(dueDate) : null}
                     minDate={new Date()}
-                 />
-               </div>
-              <div className="relative" ref={recurrencePickerRef}>
-                <button
-                  type="button"
-                  onClick={() => setIsRecurrencePickerOpen(prev => !prev)}
-                  className={`p-2 rounded-full hover:bg-[rgba(var(--accent-rgb),0.1)] transition-colors duration-200 ${recurrenceRule ? 'text-[rgba(var(--accent-rgb))] bg-[rgba(var(--accent-rgb),0.1)]' : 'text-[rgba(var(--accent-rgb))]'}`}
-                  title="Set recurrence"
-                  aria-haspopup="true"
-                  aria-expanded={isRecurrencePickerOpen}
-                >
-                  <RepeatIcon className="w-5 h-5" />
-                </button>
-                <RecurrencePicker
-                  isOpen={isRecurrencePickerOpen}
-                  onClose={() => setIsRecurrencePickerOpen(false)}
-                  onSelect={setRecurrenceRule}
-                  currentRule={recurrenceRule}
-                />
-              </div>
+                  />
+                </div>
+
               <div className="relative" ref={reminderPickerRef}>
-                <button
-                  type="button"
-                  onClick={() => setIsReminderPickerOpen(prev => !prev)}
-                  className={`p-2 rounded-full hover:bg-[rgba(var(--accent-rgb),0.1)] transition-colors duration-200 ${reminderOffset !== null ? 'text-[rgba(var(--accent-rgb))] bg-[rgba(var(--accent-rgb),0.1)]' : 'text-[rgba(var(--accent-rgb))]'} disabled:opacity-50 disabled:cursor-not-allowed`}
-                  title="Set reminder"
-                  aria-haspopup="true"
-                  aria-expanded={isReminderPickerOpen}
-                  disabled={!dueDate}
-                >
-                  <BellIcon className="w-5 h-5" />
-                </button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!dueDate) {
+                          setIsDatePickerOpen(true);
+                          setOpenReminderAfterDate(true);
+                        } else {
+                          setIsReminderPickerOpen(prev => !prev);
+                        }
+                      }}
+                      className={`p-2 rounded-full hover:bg-[rgba(var(--accent-rgb),0.1)] transition-colors duration-200 ${reminderOffset !== null ? 'text-[rgba(var(--accent-rgb))] bg-[rgba(var(--accent-rgb),0.1)]' : 'text-[rgba(var(--accent-rgb))]'} cursor-pointer`}
+                      aria-haspopup="true"
+                      aria-expanded={isReminderPickerOpen}
+                    >
+                      <BellIcon className="w-5 h-5" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Set reminder</p>
+                  </TooltipContent>
+                </Tooltip>
                 <ReminderPicker
                   isOpen={isReminderPickerOpen}
                   onClose={() => setIsReminderPickerOpen(false)}
-                  onSelect={setReminderOffset}
+                  onSelect={(offset) => {
+                    setReminderOffset(offset);
+                    if (notificationPermission === 'default') {
+                      requestNotificationPermission();
+                    }
+                  }}
                   currentOffset={reminderOffset}
                 />
               </div>
               <div className="relative" ref={priorityPickerRef}>
-                  <button
-                      type="button"
-                      onClick={() => setIsPriorityPickerOpen(prev => !prev)}
-                      className="p-2 rounded-full text-[rgba(var(--accent-rgb))] hover:bg-[rgba(var(--accent-rgb),0.1)] transition-colors duration-200 cursor-pointer"
-                      title="Set priority"
-                      aria-haspopup="true"
-                      aria-expanded={isPriorityPickerOpen}
-                  >
-                      <FlagIcon className="w-5 h-5" />
-                  </button>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                          type="button"
+                          onClick={() => setIsPriorityPickerOpen(prev => !prev)}
+                          className="p-2 rounded-full text-[rgba(var(--accent-rgb))] hover:bg-[rgba(var(--accent-rgb),0.1)] transition-colors duration-200 cursor-pointer"
+                          aria-haspopup="true"
+                          aria-expanded={isPriorityPickerOpen}
+                      >
+                          <FlagIcon className="w-5 h-5" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Set priority</p>
+                    </TooltipContent>
+                  </Tooltip>
                   <PriorityPicker
                       isOpen={isPriorityPickerOpen}
                       onClose={() => setIsPriorityPickerOpen(false)}
@@ -352,41 +387,88 @@ const AddTodoForm: React.FC<AddTodoFormProps> = ({ onAddTodo, userProfile, onTas
                       currentPriority={priority}
                   />
               </div>
-              <button
-                type="button"
-                onClick={() => setShowTagInput(!showTagInput)}
-                className={`p-2 rounded-full hover:bg-[rgba(var(--accent-rgb),0.1)] transition-colors duration-200 ${showTagInput ? 'text-[rgba(var(--accent-rgb))] bg-[rgba(var(--accent-rgb),0.1)]' : 'text-[rgba(var(--accent-rgb))]'}`}
-                aria-label="Add tags"
-                title="Add tags"
-                aria-pressed={showTagInput}
-              >
-                <HashIcon className="w-5 h-5" />
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowSubtaskInput(!showSubtaskInput)}
-                className={`p-2 rounded-full hover:bg-[rgba(var(--accent-rgb),0.1)] transition-colors duration-200 ${showSubtaskInput ? 'text-[rgba(var(--accent-rgb))] bg-[rgba(var(--accent-rgb),0.1)]' : 'text-[rgba(var(--accent-rgb))]'}`}
-                aria-label="Add subtasks"
-                title="Add subtasks"
-                aria-pressed={showSubtaskInput}
-              >
-                <SubtaskIcon className="w-5 h-5" />
-              </button>
-              <button 
-                type="button" 
-                onClick={handleSuggestTask} 
-                disabled={isLoading}
-                className="p-2 rounded-full hover:bg-[rgba(var(--accent-rgb),0.1)] text-[rgba(var(--accent-rgb))] transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                aria-label="Suggest a task with AI"
-                title="Suggest a task with AI"
-              >
-                {isLoading ? (
-                    <div className="w-5 h-5 border-2 border-[rgba(var(--accent-rgb))] border-t-transparent rounded-full animate-spin"></div>
-                ) : (
-                    <SparkleIcon className="w-5 h-5" />
+              <div className="relative" ref={moreMenuRef}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      onClick={() => setIsMoreMenuOpen(prev => !prev)}
+                      className="p-2 rounded-full text-[rgba(var(--accent-rgb))] hover:bg-[rgba(var(--accent-rgb),0.1)] transition-colors duration-200 cursor-pointer"
+                      aria-haspopup="true"
+                      aria-expanded={isMoreMenuOpen}
+                    >
+                      <MoreIcon className="w-5 h-5" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>More options</p>
+                  </TooltipContent>
+                </Tooltip>
+                {isMoreMenuOpen && (
+                  <div className="absolute z-50 top-full left-0 mt-2 w-56 rounded-lg border border-[rgba(var(--border-primary-rgb))] bg-[rgba(var(--background-primary-rgb))] shadow-lg p-2">
+                    <div className="flex flex-col space-y-2">
+                      <div className="relative" ref={recurrencePickerRef}>
+                        <button
+                          type="button"
+                          onClick={() => setIsRecurrencePickerOpen(prev => !prev)}
+                          className={`w-full flex items-center justify-start gap-2 px-2 py-1.5 rounded-md hover:bg-[rgba(var(--accent-rgb),0.08)] transition-colors duration-200 ${recurrenceRule ? 'bg-[rgba(var(--accent-rgb),0.08)]' : ''}`}
+                          title="Set recurrence"
+                          aria-haspopup="true"
+                          aria-expanded={isRecurrencePickerOpen}
+                        >
+                          <RepeatIcon className="w-4 h-4 text-[rgba(var(--accent-rgb))]" />
+                          <span className="text-sm text-white">Recurrence</span>
+                        </button>
+                        <RecurrencePicker
+                          isOpen={isRecurrencePickerOpen}
+                          onClose={() => setIsRecurrencePickerOpen(false)}
+                          onSelect={setRecurrenceRule}
+                          currentRule={recurrenceRule}
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setShowTagInput(!showTagInput)}
+                        className={`w-full flex items-center justify-start gap-2 px-2 py-1.5 rounded-md hover:bg-[rgba(var(--accent-rgb),0.08)] transition-colors duration-200 ${showTagInput ? 'bg-[rgba(var(--accent-rgb),0.08)]' : ''}`}
+                        aria-label="Add tags"
+                        title="Add tags"
+                        aria-pressed={showTagInput}
+                      >
+                        <HashIcon className="w-4 h-4 text-[rgba(var(--accent-rgb))]" />
+                        <span className="text-sm text-white">Tags</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowSubtaskInput(!showSubtaskInput)}
+                        className={`w-full flex items-center justify-start gap-2 px-2 py-1.5 rounded-md hover:bg-[rgba(var(--accent-rgb),0.08)] transition-colors duration-200 ${showSubtaskInput ? 'bg-[rgba(var(--accent-rgb),0.08)]' : ''}`}
+                        aria-label="Add subtasks"
+                        title="Add subtasks"
+                        aria-pressed={showSubtaskInput}
+                      >
+                        <SubtaskIcon className="w-4 h-4 text-[rgba(var(--accent-rgb))]" />
+                        <span className="text-sm text-white">Subtasks</span>
+                      </button>
+                      <button 
+                        type="button" 
+                        onClick={handleSuggestTask} 
+                        disabled={isLoading}
+                        className="w-full flex items-center justify-start gap-2 px-2 py-1.5 rounded-md hover:bg-[rgba(var(--accent-rgb),0.08)] transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                        aria-label="Suggest a task with AI"
+                        title="Suggest a task with AI"
+                      >
+                        {isLoading ? (
+                          <div className="w-4 h-4 border-2 border-[rgba(var(--accent-rgb))] border-t-transparent rounded-full animate-spin"></div>
+                        ) : (
+                          <SparkleIcon className="w-4 h-4 text-[rgba(var(--accent-rgb))]" />
+                        )}
+                        <span className="text-sm text-white">Suggest with AI</span>
+                      </button>
+                    </div>
+                  </div>
                 )}
-              </button>
+              </div>
             </div>
+            </TooltipProvider>
             <div className="flex items-center justify-end space-x-4 mt-3 sm:mt-0">
               <span className={`text-sm font-medium ${charsLeft <= 0 ? 'text-[rgba(var(--danger-rgb))]' : charsLeft < 20 ? 'text-[rgba(var(--warning-rgb))]' : 'text-[rgba(var(--foreground-secondary-rgb))]'}`}>
                 {charsLeft}

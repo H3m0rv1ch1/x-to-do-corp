@@ -40,6 +40,15 @@ const RightSidebar: React.FC = () => {
         />
       </div>
 
+      <button
+        onClick={openShortcutsModal}
+        className="w-full text-left p-3 rounded-xl bg-black border border-[rgba(var(--border-primary-rgb))] hover:bg-[rgba(var(--background-tertiary-rgb))] transition-colors flex items-center space-x-3"
+      >
+        <Keyboard className="w-5 h-5 text-[rgba(var(--foreground-secondary-rgb))]" />
+        <span className="font-semibold text-[rgba(var(--foreground-primary-rgb))]">Keyboard shortcuts</span>
+      </button>
+
+
       <div className="bg-black border border-[rgba(var(--border-primary-rgb))] rounded-xl p-4">
         <h2 className="text-xl font-bold text-[rgba(var(--foreground-primary-rgb))] mb-4">Task Priority</h2>
         <div className="space-y-4">
@@ -63,14 +72,6 @@ const RightSidebar: React.FC = () => {
             </button>
         )}
       </div>
-
-      <button
-        onClick={openShortcutsModal}
-        className="w-full text-left p-3 rounded-xl bg-black border border-[rgba(var(--border-primary-rgb))] hover:bg-[rgba(var(--background-tertiary-rgb))] transition-colors flex items-center space-x-3"
-      >
-        <Keyboard className="w-5 h-5 text-[rgba(var(--foreground-secondary-rgb))]" />
-        <span className="font-semibold text-[rgba(var(--foreground-primary-rgb))]">Keyboard shortcuts</span>
-      </button>
 
       <DeveloperPromo />
       
