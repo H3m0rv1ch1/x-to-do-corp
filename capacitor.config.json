@@ -1,0 +1,8 @@
+{
+  "appId": "com.xtodo.app",
+  "appName": "X To-Do Corp",
+  "webDir": ".",
+  "server": {
+    "androidScheme": "https"
+  }
+}
