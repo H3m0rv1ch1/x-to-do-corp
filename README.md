@@ -109,6 +109,18 @@ npm run build
 npm run preview
 ```
 
+### Desktop App (Windows/macOS/Linux)
+
+```bash
+# Run desktop app in development
+npm run tauri:dev
+
+# Build desktop app (.exe for Windows)
+npm run tauri:build
+```
+
+The built executable will be in `src-tauri/target/release/bundle/`
+
 ## 📱 Usage
 
 ### Creating Your First Task
@@ -152,6 +164,7 @@ npm run preview
 - **TypeScript** - Type-safe development
 - **Vite** - Lightning-fast build tool
 - **TailwindCSS** - Utility-first styling
+- **Tauri** - Desktop app framework (Rust + WebView)
 
 ### State Management
 - **React Context API** - Global state management
@@ -186,6 +199,7 @@ x-to-do-corp/
 │   ├── utils/             # Utility functions
 │   ├── constants/         # App constants
 │   └── assets/            # Static assets
+├── src-tauri/             # Tauri desktop app (Rust)
 ├── public/                # Public assets
 ├── index.html             # HTML entry point
 └── package.json           # Dependencies
@@ -206,6 +220,18 @@ X To-Do Corp follows a **Twitter/X-inspired design language** with:
 - **No Tracking** - Zero analytics or tracking scripts
 - **No Account Required** - Start using immediately
 - **Export Anytime** - Your data, your control
+
+## 🚢 Deployment
+
+### Web (Cloudflare Pages)
+The app is configured for Cloudflare Pages deployment. Push to main branch to auto-deploy.
+
+### Desktop Releases
+Desktop installers are built automatically via GitHub Actions when you create a release tag:
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
 
 ## 🤝 Contributing
 
