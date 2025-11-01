@@ -64,8 +64,7 @@
 
 ### Live Preview
 
-![X To-Do Corp Interface](./public/screenshots/Img.png)
-
+![X To-Do Corp Interface](./public/screenshots/app-preview.png)
 ### Try It Yourself
 
 ```bash
