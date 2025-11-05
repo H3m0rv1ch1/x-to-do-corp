@@ -1,10 +1,10 @@
 [package]
 name = "app"
-version = "1.0.0"
+version = "1.5.0"
 description = "X To-Do Corp - Modern task management application with Twitter/X-inspired design"
 authors = ["X To-Do Corp"]
 license = "MIT"
-repository = "https://github.com/yourusername/x-to-do-corp"
+repository = "https://github.com/H3m0rv1ch1/x-to-do-corp"
 edition = "2021"
 rust-version = "1.77.2"
 

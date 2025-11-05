@@ -120,9 +120,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Version History
 
+- **1.5.0** - Minor release
+  - Fixed due date sorting to use local dates consistently
+  - Restored mobile priority button and positioned left of avatar
+  - Centered home filter tabs on mobile
+  - Documentation updates (README links, contact, demo)
+
 - **1.0.0** - Initial public release
 - **0.1.0** - Internal beta testing
 
 ---
 
-For more details on each release, see the [GitHub Releases](https://github.com/yourusername/x-to-do-corp/releases) page.
+For more details on each release, see the [GitHub Releases](https://github.com/H3m0rv1ch1/x-to-do-corp/releases) page.

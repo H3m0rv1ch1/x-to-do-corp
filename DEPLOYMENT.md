@@ -357,7 +357,7 @@ export default defineConfig({
 ## 📞 Support
 
 For deployment issues:
-- Check [GitHub Issues](https://github.com/yourusername/x-to-do-corp/issues)
+ - Check [GitHub Issues](https://github.com/H3m0rv1ch1/x-to-do-corp/issues)
 - Read platform documentation
 - Open a discussion
 

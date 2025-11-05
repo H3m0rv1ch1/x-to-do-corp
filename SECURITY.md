@@ -96,11 +96,11 @@ We follow responsible disclosure:
 ## 📞 Contact
 
 For security concerns:
-- **Email**: security@example.com
+ - **Email**: moham8ed.atef.23@gmial.com
 - **PGP Key**: [Link to PGP key if available]
 
 For general questions:
-- **GitHub Issues**: For non-security bugs
+ - **GitHub Issues**: https://github.com/H3m0rv1ch1/x-to-do-corp/issues
 - **Discussions**: For feature requests
 
 ## 🏆 Hall of Fame

@@ -1,6 +1,6 @@
 {
   "name": "x-todo-corp",
-  "version": "1.0.0",
+  "version": "1.5.0",
   "description": "🚀 A modern, feature-rich task management application with Twitter/X-inspired design. Built with React, TypeScript, and Vite. Features include smart task management, notes, achievements, focus mode, and beautiful themes.",
   "keywords": [
     "todo",
@@ -14,13 +14,13 @@
     "twitter-ui",
     "x-inspired"
   ],
-  "homepage": "https://github.com/yourusername/x-to-do-corp#readme",
+  "homepage": "https://github.com/H3m0rv1ch1/x-to-do-corp#readme",
   "repository": {
     "type": "git",
-    "url": "https://github.com/yourusername/x-to-do-corp.git"
+  "url": "https://github.com/H3m0rv1ch1/x-to-do-corp.git"
   },
   "bugs": {
-    "url": "https://github.com/yourusername/x-to-do-corp/issues"
+    "url": "https://github.com/H3m0rv1ch1/x-to-do-corp/issues"
   },
   "author": "Your Name <your.email@example.com>",
   "license": "MIT",

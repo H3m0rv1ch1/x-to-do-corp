@@ -64,12 +64,14 @@
 
 ### Live Preview
 
-![X To-Do Corp Interface](./public/screenshots/app-preview.png)
+[![X To-Do Corp Interface](./public/screenshots/app-preview.png)](https://x-to-do-corp.pages.dev/)
+ 
+Visit the live app: https://x-to-do-corp.pages.dev/
 ### Try It Yourself
 
 ```bash
 # Clone and run locally
-git clone https://github.com/yourusername/x-to-do-corp.git
+git clone https://github.com/H3m0rv1ch1/x-to-do-corp.git
 cd x-to-do-corp
 npm install
 npm run dev
@@ -87,7 +89,7 @@ Visit `http://localhost:3000` to see the app in action!
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/x-to-do-corp.git
+git clone https://github.com/H3m0rv1ch1/x-to-do-corp.git
 
 # Navigate to project directory
 cd x-to-do-corp
@@ -263,9 +265,11 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 📧 Contact
 
-**Project Maintainer** - [@yourusername](https://github.com/yourusername)
+**Project Maintainer** - [@H3m0rv1ch1](https://github.com/H3m0rv1ch1)
 
-**Project Link** - [https://github.com/yourusername/x-to-do-corp](https://github.com/yourusername/x-to-do-corp)
+**Email** - moham8ed.atef.23@gmial.com
+
+**Project Link** - [https://github.com/H3m0rv1ch1/x-to-do-corp](https://github.com/H3m0rv1ch1/x-to-do-corp)
 
 ---
 
