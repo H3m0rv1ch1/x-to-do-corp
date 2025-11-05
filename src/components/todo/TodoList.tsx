@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { HiX } from 'react-icons/hi';
 import { type Todo } from '@/types';
 import TodoItem from './TodoItem';
@@ -67,6 +67,7 @@ const TodoList: React.FC<TodoListProps> = () => {
     userProfile,
     handleToggleSubtask,
     handleEditSubtask,
+    handleUpdateTodo,
     activeTag,
     clearActiveTag,
     searchQuery,
@@ -75,6 +76,8 @@ const TodoList: React.FC<TodoListProps> = () => {
   } = useAppContext();
 
   const [isWelcomeVisible, setIsWelcomeVisible] = useState(false);
+  const [composerEditId, setComposerEditId] = useState<string | null>(null);
+  const composerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const hasDismissedWelcome = localStorage.getItem('hasDismissedWelcomeGuide');
@@ -104,6 +107,13 @@ const TodoList: React.FC<TodoListProps> = () => {
   };
 
   const isSearching = searchQuery.trim() !== '';
+  
+  // Smooth-scroll composer into view when entering edit mode
+  useEffect(() => {
+    if (composerEditId && composerRef.current) {
+      composerRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [composerEditId]);
   
   const visuallySortedTodos = useMemo(() => {
     // Move completed tasks to the bottom for 'all' and 'important' filters
@@ -148,6 +158,7 @@ const TodoList: React.FC<TodoListProps> = () => {
             onToggleImportant={handleToggleImportant}
             onToggleSubtask={handleToggleSubtask}
             onEditSubtask={handleEditSubtask}
+            onOpenComposerEdit={(id) => setComposerEditId(id)}
           />
         ))}
       </div>
@@ -156,10 +167,13 @@ const TodoList: React.FC<TodoListProps> = () => {
 
   return (
     <>
-      {!isSearching && (
+      {/* Track the last added todo to auto-open its edit mode */}
+      {/** Local state to store last added todo id */}
+      
+    {!isSearching && (
         <div className="sticky top-16 bg-[rgba(var(--background-primary-rgb),0.8)] backdrop-blur-md z-10 border-b border-[rgba(var(--border-primary-rgb))]">
           <div className="overflow-x-auto no-scrollbar">
-            <div className="flex">
+            <div className="flex justify-center md:justify-start w-full">
               <button onClick={() => setFilter('all')} className={`p-4 text-center whitespace-nowrap px-4 sm:flex-1 hover:bg-[rgba(var(--background-tertiary-rgb))] transition-colors duration-200 ${filter === 'all' ? 'font-bold border-b-2 border-[rgba(var(--accent-rgb))] text-[rgba(var(--foreground-primary-rgb))]' : 'text-[rgba(var(--foreground-secondary-rgb))]'}`}>All</button>
               <button onClick={() => setFilter('important')} className={`p-4 text-center whitespace-nowrap px-4 sm:flex-1 hover:bg-[rgba(var(--background-tertiary-rgb))] transition-colors duration-200 ${filter === 'important' ? 'font-bold border-b-2 border-[rgba(var(--accent-rgb))] text-[rgba(var(--foreground-primary-rgb))]' : 'text-[rgba(var(--foreground-secondary-rgb))]'}`}>Important</button>
               <button onClick={() => setFilter('pending')} className={`p-4 text-center whitespace-nowrap px-4 sm:flex-1 hover:bg-[rgba(var(--background-tertiary-rgb))] transition-colors duration-200 ${filter === 'pending' ? 'font-bold border-b-2 border-[rgba(var(--accent-rgb))] text-[rgba(var(--foreground-primary-rgb))]' : 'text-[rgba(var(--foreground-secondary-rgb))]'}`}>Pending</button>
@@ -198,8 +212,15 @@ const TodoList: React.FC<TodoListProps> = () => {
             </button>
          </div>
       )}
-      <div className="border-b border-[rgba(var(--border-primary-rgb))] hidden md:block">
-        <AddTodoForm onAddTodo={handleAddTodo} userProfile={userProfile} />
+      <div ref={composerRef} className="border-b border-[rgba(var(--border-primary-rgb))] hidden md:block">
+        <AddTodoForm 
+          onAddTodo={handleAddTodo} 
+          userProfile={userProfile}
+          onTaskAdded={(id) => setComposerEditId(id)}
+          editingTodo={composerEditId ? todos.find(t => t.id === composerEditId) || null : null}
+          onUpdateTodo={handleUpdateTodo}
+          onEditCancel={() => setComposerEditId(null)}
+        />
       </div>
       {renderContent()}
     </>

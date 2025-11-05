@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
-import { HiSearch, HiStar, HiOutlineStar, HiKey } from 'react-icons/hi';
+import { HiSearch, HiStar, HiOutlineStar } from 'react-icons/hi';
+import { MdOutlineKeyboard } from 'react-icons/md';
 import { useAppContext } from '@/hooks/useAppContext';
 import { DeveloperPromo } from '@/components/ui';
 
@@ -68,7 +69,7 @@ const RightSidebar: React.FC = () => {
         onClick={openShortcutsModal}
         className="w-full text-left p-3 rounded-xl bg-[rgba(var(--background-primary-rgb))] border border-[rgba(var(--border-primary-rgb))] hover:bg-[rgba(var(--background-tertiary-rgb))] transition-colors flex items-center space-x-3"
       >
-        <HiKey className="w-5 h-5 text-[rgba(var(--foreground-secondary-rgb))]" />
+        <MdOutlineKeyboard className="w-5 h-5 text-[rgba(var(--foreground-secondary-rgb))]" />
         <span className="font-semibold text-[rgba(var(--foreground-primary-rgb))]">Keyboard shortcuts</span>
       </button>
 

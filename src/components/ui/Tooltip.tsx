@@ -1,13 +1,17 @@
 import React, { useState, useRef } from 'react';
+import { createPortal } from 'react-dom';
 
 interface TooltipProps {
   children: React.ReactNode;
   text: string;
+  placement?: 'above' | 'below';
 }
 
-const Tooltip: React.FC<TooltipProps> = ({ children, text }) => {
+const Tooltip: React.FC<TooltipProps> = ({ children, text, placement = 'above' }) => {
   const [isVisible, setIsVisible] = useState(false);
   const timeoutRef = useRef<number | null>(null);
+  const anchorRef = useRef<HTMLDivElement | null>(null);
+  const [coords, setCoords] = useState<{ left: number; top: number; placement: 'above' | 'below' } | null>(null);
 
   // Don't render a wrapper if there's no tooltip text
   if (!text) {
@@ -18,7 +22,25 @@ const Tooltip: React.FC<TooltipProps> = ({ children, text }) => {
     // Set a timeout to show the tooltip after a delay
     timeoutRef.current = window.setTimeout(() => {
       setIsVisible(true);
-    }, 300); // Faster delay
+
+      // Compute viewport-based coordinates to avoid clipping
+      const el = anchorRef.current;
+      if (el) {
+        const rect = el.getBoundingClientRect();
+        const margin = 8;
+        const estimatedHeight = 28; // approximate small tooltip height
+        const hasSpaceAbove = rect.top > (estimatedHeight + margin);
+        const hasSpaceBelow = (window.innerHeight - rect.bottom) > (estimatedHeight + margin);
+        const finalPlacement: 'above' | 'below' = placement === 'above'
+          ? (hasSpaceAbove ? 'above' : 'below')
+          : (hasSpaceBelow ? 'below' : 'above');
+
+        const centerX = rect.left + rect.width / 2;
+        const left = Math.min(Math.max(centerX, margin), window.innerWidth - margin);
+        const top = finalPlacement === 'above' ? rect.top - margin : rect.bottom + margin;
+        setCoords({ left, top, placement: finalPlacement });
+      }
+    }, 250); // slight delay for smoother feel
   };
 
   const handleMouseLeave = () => {
@@ -32,33 +54,37 @@ const Tooltip: React.FC<TooltipProps> = ({ children, text }) => {
 
   return (
     <div 
-      className="relative"
+      className="relative inline-block"
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
+      ref={anchorRef}
     >
       {children}
-      {isVisible && (
-        <>
+      {isVisible && coords && createPortal(
+        <div 
+          role="tooltip"
+          className="fixed px-3 py-1.5 bg-[rgba(var(--foreground-primary-rgb))] text-[rgba(var(--background-primary-rgb))] text-xs rounded-md whitespace-nowrap z-[1000] pointer-events-none shadow-lg"
+          style={{
+            left: `${coords.left}px`,
+            top: `${coords.top}px`,
+            transform: coords.placement === 'above' ? 'translate(-50%, -100%)' : 'translate(-50%, 0)',
+            animation: 'fadeIn 0.15s ease-out'
+          }}
+        >
+          {text}
           <div 
-            className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 bg-[rgba(var(--foreground-primary-rgb))] text-[rgba(var(--background-primary-rgb))] text-xs rounded-md whitespace-nowrap z-[100] pointer-events-none shadow-lg"
-            style={{ 
-              animation: 'fadeIn 0.15s ease-out'
+            className={`absolute ${coords.placement === 'above' ? 'bottom-[-4px]' : 'top-[-4px]'} left-1/2 -translate-x-1/2`}
+            style={{
+              width: 0,
+              height: 0,
+              borderLeft: '4px solid transparent',
+              borderRight: '4px solid transparent',
+              borderTop: coords.placement === 'above' ? '4px solid rgba(var(--foreground-primary-rgb))' : '0',
+              borderBottom: coords.placement === 'below' ? '4px solid rgba(var(--foreground-primary-rgb))' : '0'
             }}
-          >
-            {text}
-            {/* Tooltip arrow */}
-            <div 
-              className="absolute top-full left-1/2 -translate-x-1/2 -mt-[1px]"
-              style={{
-                width: 0,
-                height: 0,
-                borderLeft: '4px solid transparent',
-                borderRight: '4px solid transparent',
-                borderTop: '4px solid rgba(var(--foreground-primary-rgb))'
-              }}
-            />
-          </div>
-        </>
+          />
+        </div>,
+        document.body
       )}
     </div>
   );

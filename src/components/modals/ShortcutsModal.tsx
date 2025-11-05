@@ -1,5 +1,6 @@
 import React from 'react';
-import { HiX, HiKey } from 'react-icons/hi';
+import { HiX } from 'react-icons/hi';
+import { MdOutlineKeyboard } from 'react-icons/md';
 
 interface ShortcutsModalProps {
   isOpen: boolean;
@@ -51,7 +52,7 @@ const ShortcutsModal: React.FC<ShortcutsModalProps> = ({ isOpen, onClose }) => {
             >
                 <div className="flex items-center justify-between p-4 border-b border-[rgba(var(--border-primary-rgb))]">
                     <div className="flex items-center space-x-3">
-                        <HiKey className="w-6 h-6 text-[rgba(var(--foreground-secondary-rgb))]" />
+                        <MdOutlineKeyboard className="w-6 h-6 text-[rgba(var(--foreground-secondary-rgb))]" />
                         <h2 id="shortcuts-title" className="text-xl font-bold">Keyboard Shortcuts</h2>
                     </div>
                     <button onClick={onClose} className="p-2 -mr-2 rounded-full hover:bg-[rgba(var(--background-tertiary-rgb))]">

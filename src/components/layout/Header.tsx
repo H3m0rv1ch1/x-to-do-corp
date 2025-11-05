@@ -1,21 +1,30 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { FaXTwitter } from 'react-icons/fa6';
-import { HiDotsHorizontal, HiSparkles, HiSearch, HiArrowLeft } from 'react-icons/hi';
+import { HiDotsHorizontal, HiSearch, HiArrowLeft, HiMinus, HiX } from 'react-icons/hi';
 import { useAppContext } from '@/hooks/useAppContext';
 import useClickOutside from '@/hooks/useClickOutside';
 import HeaderMenu from './HeaderMenu';
-import { Tooltip } from '@/components/ui';
+import { Tooltip, Avatar } from '@/components/ui';
+import InstallBanner from '@/components/ui/InstallBanner';
+import NotificationPrompt from '@/components/ui/NotificationPrompt';
 
 const Header: React.FC = () => {
-  const { page, pageTitle, searchQuery, setSearchQuery } = useAppContext();
+  const { page, pageTitle, searchQuery, setSearchQuery, userProfile, setPage } = useAppContext();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isSearchActive, setIsSearchActive] = useState(false);
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const profileMenuRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   useClickOutside(menuRef, () => {
     if (isMenuOpen) {
       setIsMenuOpen(false);
+    }
+  });
+  useClickOutside(profileMenuRef, () => {
+    if (isProfileMenuOpen) {
+      setIsProfileMenuOpen(false);
     }
   });
 
@@ -32,6 +41,34 @@ const Header: React.FC = () => {
 
   // Only show the more button on the home page where sorting/clearing is relevant
   const canShowMore = page === 'home';
+  const isTauriEnv = typeof window !== 'undefined' && (window as any).__TAURI__ !== undefined;
+
+  const handleMinimize = async () => {
+    if (!isTauriEnv) return;
+    try {
+      const { getCurrentWindow } = await import('@tauri-apps/api/window');
+      const win = getCurrentWindow();
+      await win.minimize();
+    } catch (e) {}
+  };
+
+  const handleMaximize = async () => {
+    if (!isTauriEnv) return;
+    try {
+      const { getCurrentWindow } = await import('@tauri-apps/api/window');
+      const win = getCurrentWindow();
+      await win.toggleMaximize();
+    } catch (e) {}
+  };
+
+  const handleClose = async () => {
+    if (!isTauriEnv) return;
+    try {
+      const { getCurrentWindow } = await import('@tauri-apps/api/window');
+      const win = getCurrentWindow();
+      await win.close();
+    } catch (e) {}
+  };
 
   if (isSearchActive) {
     return (
@@ -69,17 +106,13 @@ const Header: React.FC = () => {
             </div>
             <h1 className="text-[20px] font-bold text-[rgba(var(--foreground-primary-rgb))]">{pageTitle}</h1>
         </div>
-         <div className="flex items-center space-x-2">
+        <div className="flex items-center space-x-2">
             <Tooltip text="Search">
               <button onClick={() => setIsSearchActive(true)} className="p-2 xl:hidden rounded-full hover:bg-[rgba(var(--background-tertiary-rgb))] transition-colors duration-200" aria-label="Search">
                   <HiSearch className="w-5 h-5 text-[rgba(var(--foreground-primary-rgb))]" />
               </button>
             </Tooltip>
-            <Tooltip text="View options (Coming soon!)">
-              <button className="p-2 md:hidden rounded-full hover:bg-[rgba(var(--background-tertiary-rgb))] transition-colors duration-200" aria-label="Top Tweets">
-                  <HiSparkles className="w-6 h-6 text-[rgba(var(--foreground-primary-rgb))]" />
-              </button>
-            </Tooltip>
+            {/* AI sparkles button removed per request */}
             {canShowMore && (
               <div className="relative" ref={menuRef}>
                 <Tooltip text="More options">
@@ -96,8 +129,68 @@ const Header: React.FC = () => {
                 <HeaderMenu isOpen={isMenuOpen} onClose={() => setIsMenuOpen(false)} />
               </div>
             )}
+            {isTauriEnv && (
+              <div className="flex items-center ml-2">
+                <Tooltip text="Minimize">
+                  <button onClick={handleMinimize} className="px-2 py-2 rounded hover:bg-[rgba(var(--background-tertiary-rgb))]" aria-label="Minimize">
+                    <HiMinus className="w-5 h-5 text-[rgba(var(--foreground-primary-rgb))]" />
+                  </button>
+                </Tooltip>
+                <Tooltip text="Maximize">
+                  <button onClick={handleMaximize} className="px-2 py-2 rounded hover:bg-[rgba(var(--background-tertiary-rgb))]" aria-label="Maximize">
+                    <span className="block w-3 h-3 border border-[rgba(var(--foreground-primary-rgb))]" />
+                  </button>
+                </Tooltip>
+                <Tooltip text="Close">
+                  <button onClick={handleClose} className="px-2 py-2 rounded hover:bg-[rgba(var(--danger-rgb))] hover:text-white" aria-label="Close">
+                    <HiX className="w-5 h-5" />
+                  </button>
+                </Tooltip>
+              </div>
+            )}
+            {/* Mobile Profile Avatar (furthest right) */}
+            <div className="relative md:hidden" ref={profileMenuRef}>
+              <Tooltip text="Account">
+                <button
+                  onClick={() => setIsProfileMenuOpen(prev => !prev)}
+                  className="p-1.5 rounded-full hover:bg-[rgba(var(--background-tertiary-rgb))] transition-colors duration-200"
+                  aria-label="Account"
+                  aria-haspopup="true"
+                  aria-expanded={isProfileMenuOpen}
+                >
+                  <div className="w-8 h-8">
+                    <Avatar imageUrl={userProfile?.avatarUrl || null} />
+                  </div>
+                </button>
+              </Tooltip>
+              {isProfileMenuOpen && (
+                <div className="absolute right-0 mt-2 w-44 bg-[rgba(var(--background-primary-rgb))] rounded-xl shadow-[0_8px_30px_rgba(var(--foreground-primary-rgb),0.12)] border border-[rgba(var(--border-primary-rgb))] z-30 py-2 animate-fade-in">
+                  <ul>
+                    <li>
+                      <button
+                        onClick={() => { setPage('profile'); setIsProfileMenuOpen(false); }}
+                        className="w-full text-left px-4 py-2 text-base text-[rgba(var(--foreground-primary-rgb))] hover:bg-[rgba(var(--foreground-primary-rgb),0.1)]"
+                      >
+                        Profile
+                      </button>
+                    </li>
+                    <li>
+                      <button
+                        onClick={() => { setPage('settings'); setIsProfileMenuOpen(false); }}
+                        className="w-full text-left px-4 py-2 text-base text-[rgba(var(--foreground-primary-rgb))] hover:bg-[rgba(var(--foreground-primary-rgb),0.1)]"
+                      >
+                        Settings
+                      </button>
+                    </li>
+                  </ul>
+                </div>
+              )}
+            </div>
         </div>
       </div>
+      {/* Inline banners below header bar */}
+      <InstallBanner />
+      <NotificationPrompt />
     </header>
   );
 };

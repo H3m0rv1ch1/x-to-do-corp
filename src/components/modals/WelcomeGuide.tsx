@@ -1,5 +1,6 @@
 import React from 'react';
-import { HiPencil, HiHashtag, HiPlay, HiKey } from 'react-icons/hi';
+import { HiPencil, HiHashtag, HiPlay } from 'react-icons/hi';
+import { MdOutlineKeyboard } from 'react-icons/md';
 
 interface WelcomeGuideProps {
     onDismiss: () => void;
@@ -42,7 +43,7 @@ const WelcomeGuide: React.FC<WelcomeGuideProps> = ({ onDismiss, onGetStarted }) 
                         description="Click the play icon on a task to start a distraction-free session and crush your goals."
                     />
                     <Tip 
-                        icon={<HiKey className="w-5 h-5" />} 
+                        icon={<MdOutlineKeyboard className="w-5 h-5" />} 
                         title="Master Shortcuts" 
                         description={<>Press <kbd>?</kbd> anytime to see a full list of keyboard shortcuts and speed up your workflow.</>}
                     />

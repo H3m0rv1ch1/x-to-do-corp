@@ -159,6 +159,14 @@ The built executable will be in `src-tauri/target/release/bundle/`
 4. Click **"Start Focus"**
 5. Stay focused until the timer completes!
 
+### Notifications
+
+- Click-to-focus: clicking a notification focuses the app without changing routes.
+- Web: focuses the existing tab; opens a new window only if none are open (via Service Worker).
+- Tauri desktop: unminimizes, shows, and focuses the window for a smooth, non-disruptive bring-to-front.
+- Permissions: enable notifications when prompted or via Settings.
+- Optional routing: notifications can be configured to open a specific screen if desired.
+
 ## 🛠️ Tech Stack
 
 ### Frontend

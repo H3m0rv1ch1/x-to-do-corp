@@ -1,19 +1,22 @@
 
-import React, { useState, useRef, useId } from 'react';
+import React, { useState, useRef, useId, useEffect } from 'react';
 import { HiOutlinePhotograph, HiOutlineCalendar, HiOutlineBell, HiX, HiDotsHorizontal, HiOutlineHashtag, HiHashtag } from 'react-icons/hi';
 import { HiArrowPath, HiOutlineFlag, HiFlag } from 'react-icons/hi2';
 import { HiOutlineViewList } from 'react-icons/hi';
 import { Avatar, DatePicker, RecurrencePicker, ReminderPicker, PriorityPicker, Tooltip } from '@/components/ui';
-import { type UserProfile, type RecurrenceType, type Priority } from '@/types';
+import { type UserProfile, type RecurrenceType, type Priority, type Todo } from '@/types';
 import useClickOutside from '@/hooks/useClickOutside';
 
 interface AddTodoFormProps {
-  onAddTodo: (todoData: { text: string; imageUrl: string | null; dueDate: string | null; priority: Priority; subtasks: string[], tags: string[], recurrenceRule: { type: RecurrenceType } | null, reminderOffset: number | null }) => void;
+  onAddTodo: (todoData: { text: string; imageUrl: string | null; dueDate: string | null; priority: Priority; subtasks: string[], tags: string[], recurrenceRule: { type: RecurrenceType } | null, reminderOffset: number | null }) => Promise<string>;
   userProfile: UserProfile;
-  onTaskAdded?: () => void;
+  onTaskAdded?: (id: string) => void;
+  editingTodo?: Todo | null;
+  onUpdateTodo?: (id: string, updates: Partial<Todo>) => void;
+  onEditCancel?: () => void;
 }
 
-const AddTodoForm: React.FC<AddTodoFormProps> = ({ onAddTodo, userProfile, onTaskAdded }) => {
+const AddTodoForm: React.FC<AddTodoFormProps> = ({ onAddTodo, userProfile, onTaskAdded, editingTodo, onUpdateTodo, onEditCancel }) => {
   const [text, setText] = useState('');
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [dueDate, setDueDate] = useState<string | null>(null);
@@ -47,6 +50,43 @@ const AddTodoForm: React.FC<AddTodoFormProps> = ({ onAddTodo, userProfile, onTas
   useClickOutside(reminderPickerRef, () => setIsReminderPickerOpen(false));
   useClickOutside(moreOptionsRef, () => setIsMoreOptionsOpen(false));
 
+  // Helper: reset composer to blank add state
+  const resetForm = () => {
+    setText('');
+    setImageUrl(null);
+    setDueDate(null);
+    setPriority('none');
+    setRecurrenceRule(null);
+    setReminderOffset(null);
+    setSubtasks([]);
+    setCurrentSubtask('');
+    setShowSubtaskInput(false);
+    setTags([]);
+    setCurrentTag('');
+    setShowTagInput(false);
+    setImageError(null);
+    // Return focus to composer for quick add
+    setTimeout(() => textareaRef.current?.focus(), 0);
+  };
+
+  // Populate with existing todo when editing in composer, or reset when closing
+  useEffect(() => {
+    if (editingTodo) {
+      setText(editingTodo.text || '');
+      setImageUrl(editingTodo.imageUrl || null);
+      setDueDate(editingTodo.dueDate || null);
+      setPriority(editingTodo.priority || 'none');
+      setRecurrenceRule(editingTodo.recurrenceRule || null);
+      setReminderOffset(editingTodo.reminderOffset ?? null);
+      setSubtasks((editingTodo.subtasks || []).map(st => st.text));
+      setTags(editingTodo.tags || []);
+      // Focus textarea for immediate editing
+      setTimeout(() => textareaRef.current?.focus(), 0);
+    } else {
+      resetForm();
+    }
+  }, [editingTodo]);
+
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const uniqueId = useId();
@@ -54,6 +94,17 @@ const AddTodoForm: React.FC<AddTodoFormProps> = ({ onAddTodo, userProfile, onTas
 
   const MAX_CHARS = 280;
   const charsLeft = MAX_CHARS - text.length;
+
+  // Circular progress (X-style) for character count
+  const r = 9; // radius for SVG circle
+  const circumference = 2 * Math.PI * r;
+  const progress = Math.min(text.length / MAX_CHARS, 1);
+  const offset = circumference * (1 - progress);
+  const progressColor = charsLeft <= 0
+    ? 'rgba(var(--danger-rgb))'
+    : charsLeft < 20
+      ? 'rgba(var(--warning-rgb))'
+      : 'rgba(var(--accent-rgb))';
   
   const handleAddSubtask = () => {
     if (currentSubtask.trim()) {
@@ -92,25 +143,30 @@ const AddTodoForm: React.FC<AddTodoFormProps> = ({ onAddTodo, userProfile, onTas
       }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (text.trim() && !imageError) {
-      onAddTodo({ text: text.trim(), imageUrl, dueDate, priority, subtasks, tags, recurrenceRule, reminderOffset });
-      setText('');
-      setImageUrl(null);
-      setDueDate(null);
-      setPriority('none');
-      setRecurrenceRule(null);
-      setReminderOffset(null);
-      setSubtasks([]);
-      setCurrentSubtask('');
-      setShowSubtaskInput(false);
-      setTags([]);
-      setCurrentTag('');
-      setShowTagInput(false);
-      setImageError(null);
+      if (editingTodo && onUpdateTodo) {
+        const mergedSubtasks = (editingTodo.subtasks || []).map((st, i) => ({ ...st, text: subtasks[i] ?? st.text }));
+        const extraSubtasks = subtasks.slice(mergedSubtasks.length).map(s => ({ id: crypto.randomUUID(), text: s, completed: false }));
+        await onUpdateTodo(editingTodo.id, {
+          text: text.trim(),
+          imageUrl,
+          dueDate,
+          priority,
+          recurrenceRule,
+          reminderOffset,
+          tags,
+          subtasks: [...mergedSubtasks, ...extraSubtasks]
+        });
+        if (onEditCancel) onEditCancel();
+        resetForm();
+        return;
+      }
+      const newId = await onAddTodo({ text: text.trim(), imageUrl, dueDate, priority, subtasks, tags, recurrenceRule, reminderOffset });
+      resetForm();
       if (onTaskAdded) {
-        onTaskAdded();
+        onTaskAdded(newId);
       }
     }
   };
@@ -196,7 +252,7 @@ const AddTodoForm: React.FC<AddTodoFormProps> = ({ onAddTodo, userProfile, onTas
             value={text}
             onChange={(e) => setText(e.target.value)}
             placeholder="What needs to be done?"
-            className="w-full bg-transparent text-xl text-[rgba(var(--foreground-primary-rgb))] placeholder-[rgba(var(--foreground-secondary-rgb))] focus:outline-none resize-none"
+            className="w-full bg-transparent text-xl text-[rgba(var(--foreground-primary-rgb))] placeholder-[rgba(var(--foreground-secondary-rgb))] focus:outline-none resize-none transition-shadow duration-200 focus:shadow-[0_0_0_2px_rgba(var(--accent-rgb),0.25)] rounded-xl"
             rows={2}
             maxLength={MAX_CHARS}
             autoFocus
@@ -389,16 +445,53 @@ const AddTodoForm: React.FC<AddTodoFormProps> = ({ onAddTodo, userProfile, onTas
                 )}
               </div>
             </div>
-            <div className="flex items-center justify-end space-x-4 mt-3 sm:mt-0">
-              <span className={`text-sm font-medium ${charsLeft <= 0 ? 'text-[rgba(var(--danger-rgb))]' : charsLeft < 20 ? 'text-[rgba(var(--warning-rgb))]' : 'text-[rgba(var(--foreground-secondary-rgb))]'}`}>
-                {charsLeft}
-              </span>
+            <div className="flex items-center justify-end space-x-4 mt-3 sm:mt-0 group">
+              {/* X-style circular progress indicator replacing numeric count */}
+              <Tooltip text={`${charsLeft} characters left`}>
+                <div
+                  className="relative w-6 h-6 transition-transform duration-200 group-hover:scale-105"
+                  aria-label={`${text.length}/${MAX_CHARS} characters`}
+                >
+                  <svg className="w-6 h-6 -rotate-90" viewBox="0 0 24 24">
+                    {/* Background circle */}
+                    <circle
+                      cx="12"
+                      cy="12"
+                      r={r}
+                      stroke="rgba(var(--border-primary-rgb))"
+                      strokeWidth="2.5"
+                      fill="none"
+                    />
+                    {/* Progress circle */}
+                    <circle
+                      cx="12"
+                      cy="12"
+                      r={r}
+                      stroke={progressColor}
+                      strokeWidth="2.5"
+                      fill="none"
+                      strokeDasharray={circumference}
+                      strokeDashoffset={offset}
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                </div>
+              </Tooltip>
+              {editingTodo && onEditCancel && (
+                <button
+                  type="button"
+                  onClick={() => { onEditCancel(); /* local reset to blank */ /* reset handled by effect too */ }}
+                  className="border border-[rgba(var(--border-secondary-rgb))] text-[rgba(var(--foreground-primary-rgb))] px-4 py-1.5 rounded-full hover:bg-[rgba(var(--foreground-primary-rgb),0.05)] transition-colors"
+                >
+                  Cancel
+                </button>
+              )}
               <button 
                 type="submit" 
-                className="bg-[rgba(var(--button-primary-bg-rgb))] text-[rgba(var(--button-primary-text-rgb))] font-bold px-4 py-1.5 rounded-full hover:opacity-90 transition-opacity duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="bg-[rgba(var(--button-primary-bg-rgb))] text-[rgba(var(--button-primary-text-rgb))] font-bold px-4 py-1.5 rounded-full hover:opacity-90 transition-transform duration-150 active:scale-95 focus:outline-none focus:ring-2 focus:ring-[rgba(var(--accent-rgb),0.35)] disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={!text.trim() || !!imageError}
               >
-                Add Task
+                {editingTodo ? 'Save' : 'Add Task'}
               </button>
             </div>
           </div>

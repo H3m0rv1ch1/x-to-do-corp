@@ -42,3 +42,30 @@ self.addEventListener('fetch', (event) => {
     })
   );
 });
+
+// Make notifications clickable: focus existing app window or open a new one
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const url = (event.notification && event.notification.data && event.notification.data.url) || '/';
+  event.waitUntil((async () => {
+    try {
+      const clientList = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+      if (clientList && clientList.length > 0) {
+        // Focus the first visible client
+        for (const client of clientList) {
+          try {
+            if ('focus' in client) {
+              await client.focus();
+              return;
+            }
+          } catch {}
+        }
+      }
+      // No clients – open the app URL
+      await self.clients.openWindow(url);
+    } catch (e) {
+      // Fallback: try to open root
+      try { await self.clients.openWindow('/'); } catch {}
+    }
+  })());
+});

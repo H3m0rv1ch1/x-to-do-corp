@@ -1,9 +1,10 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { type Todo, type Subtask, Priority } from '@/types';
-import { HiCheck, HiTrash, HiPencil, HiStar, HiOutlineStar, HiCalendar, HiPlay, HiFlag } from 'react-icons/hi';
+import React, { useState, useRef, useEffect, useMemo, useId } from 'react';
+import { type Todo, type Subtask, Priority, type RecurrenceType } from '@/types';
+import { HiCheck, HiTrash, HiPencil, HiStar, HiOutlineStar, HiCalendar, HiPlay, HiPause, HiOutlinePhotograph, HiOutlineBell, HiDotsHorizontal, HiOutlineHashtag, HiHashtag, HiX } from 'react-icons/hi';
+import { HiArrowPath, HiOutlineFlag, HiFlag } from 'react-icons/hi2';
 import { useAppContext } from '@/hooks/useAppContext';
 import { linkify } from '@/utils/textParser';
-import { PriorityPicker, Tooltip, TagBadge } from '@/components/ui';
+import { Tooltip, TagBadge, DatePicker, RecurrencePicker, ReminderPicker, PriorityPicker } from '@/components/ui';
 import useClickOutside from '@/hooks/useClickOutside';
 
 interface TodoItemProps {
@@ -14,6 +15,8 @@ interface TodoItemProps {
   onToggleImportant: (id: string) => void;
   onToggleSubtask: (todoId: string, subtaskId: string) => void;
   onEditSubtask: (todoId: string, subtaskId: string, newText: string) => void;
+  autoEdit?: boolean;
+  onOpenComposerEdit?: (id: string) => void;
 }
 
 const priorityStyles: Record<Priority, string> = {
@@ -23,33 +26,55 @@ const priorityStyles: Record<Priority, string> = {
     none: 'bg-transparent',
 };
 
-const priorityIconColor: Record<Priority, string> = {
-    high: 'text-[rgba(var(--danger-rgb))]',
-    medium: 'text-[rgba(var(--warning-rgb))]',
-    low: 'text-[rgba(var(--accent-rgb))]',
-    none: 'text-[rgba(var(--foreground-secondary-rgb))]',
-};
+// Priority icon color removed as the priority button/picker is no longer rendered.
 
 
-const TodoItem: React.FC<TodoItemProps> = ({ todo, onToggleTodo, onDeleteTodo, onEditTodo, onToggleImportant, onToggleSubtask, onEditSubtask }) => {
+const TodoItem: React.FC<TodoItemProps> = ({ todo, onToggleTodo, onDeleteTodo, onEditTodo, onToggleImportant, onToggleSubtask, onEditSubtask, autoEdit, onOpenComposerEdit }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editText, setEditText] = useState(todo.text);
   const [isMounted, setIsMounted] = useState(false);
-  const [isPriorityPickerOpen, setIsPriorityPickerOpen] = useState(false);
   const [editingSubtask, setEditingSubtask] = useState<{ id: string, text: string } | null>(null);
-  
+  const [imageUrl, setImageUrl] = useState<string | null>(todo.imageUrl);
+  const [dueDate, setDueDate] = useState<string | null>(todo.dueDate);
+  const [priority, setPriority] = useState<Priority>(todo.priority);
+  const [recurrenceRule, setRecurrenceRule] = useState<{ type: RecurrenceType } | null>(todo.recurrenceRule);
+  const [reminderOffset, setReminderOffset] = useState<number | null>(todo.reminderOffset);
+  const [imageError, setImageError] = useState<string | null>(null);
+  const [tags, setTags] = useState<string[]>(todo.tags || []);
+  const [currentTag, setCurrentTag] = useState('');
+  const [showTagInput, setShowTagInput] = useState(false);
+
   const { 
-    handleSetPriority,
     startFocusSession, 
+    openFocusModal,
+    focusSession,
     openLightbox,
-    handleTagClick
+    handleTagClick,
+    handleUpdateTodo
   } = useAppContext();
 
   const inputRef = useRef<HTMLInputElement>(null);
   const subtaskInputRef = useRef<HTMLInputElement>(null);
+  const datePickerRef = useRef<HTMLDivElement>(null);
   const priorityPickerRef = useRef<HTMLDivElement>(null);
+  const recurrencePickerRef = useRef<HTMLDivElement>(null);
+  const reminderPickerRef = useRef<HTMLDivElement>(null);
+  const moreOptionsRef = useRef<HTMLDivElement>(null);
+  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+  const [isPriorityPickerOpen, setIsPriorityPickerOpen] = useState(false);
+  const [isRecurrencePickerOpen, setIsRecurrencePickerOpen] = useState(false);
+  const [isReminderPickerOpen, setIsReminderPickerOpen] = useState(false);
+  const [isMoreOptionsOpen, setIsMoreOptionsOpen] = useState(false);
 
+  useClickOutside(datePickerRef, () => setIsDatePickerOpen(false));
   useClickOutside(priorityPickerRef, () => setIsPriorityPickerOpen(false));
+  useClickOutside(recurrencePickerRef, () => setIsRecurrencePickerOpen(false));
+  useClickOutside(reminderPickerRef, () => setIsReminderPickerOpen(false));
+  useClickOutside(moreOptionsRef, () => setIsMoreOptionsOpen(false));
+
+  const uniqueId = useId();
+  const imageUploadId = `todo-item-image-${uniqueId}`;
+  
 
   useEffect(() => {
     const timeout = setTimeout(() => setIsMounted(true), 10);
@@ -62,6 +87,11 @@ const TodoItem: React.FC<TodoItemProps> = ({ todo, onToggleTodo, onDeleteTodo, o
     }
   }, [isEditing]);
 
+  // Auto-edit flag no longer enters local edit; composer handles editing.
+  useEffect(() => {
+    // Keep hook for future effects; no local edit toggle.
+  }, [autoEdit]);
+
   useEffect(() => {
     if (editingSubtask && subtaskInputRef.current) {
         subtaskInputRef.current.focus();
@@ -69,13 +99,22 @@ const TodoItem: React.FC<TodoItemProps> = ({ todo, onToggleTodo, onDeleteTodo, o
   }, [editingSubtask]);
 
   const handleEdit = () => {
+    if (onOpenComposerEdit) {
+      onOpenComposerEdit(todo.id);
+      return;
+    }
+    // Fallback to local edit if composer callback not provided
     setIsEditing(true);
   };
 
   const handleSave = () => {
-    if (editText.trim() !== '') {
-      onEditTodo(todo.id, editText.trim());
+    const newText = editText.trim();
+    if (!newText) {
+      setIsEditing(false);
+      return;
     }
+    // Text-only save per request
+    onEditTodo(todo.id, newText);
     setIsEditing(false);
   };
 
@@ -84,7 +123,7 @@ const TodoItem: React.FC<TodoItemProps> = ({ todo, onToggleTodo, onDeleteTodo, o
     setIsEditing(false);
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     if (e.key === 'Enter') {
       handleSave();
     } else if (e.key === 'Escape') {
@@ -109,17 +148,68 @@ const TodoItem: React.FC<TodoItemProps> = ({ todo, onToggleTodo, onDeleteTodo, o
   };
   
   const { isOverdue, isToday, formattedDueDate } = useMemo(() => {
-    if (!todo.dueDate) {
+    const targetDate = isEditing ? dueDate : todo.dueDate;
+    if (!targetDate) {
       return { isOverdue: false, isToday: false, formattedDueDate: null };
     }
-    const dueDate = new Date(todo.dueDate);
+    const parsedDueDate = new Date(targetDate);
     const today = new Date();
     const todayAtUTCMidnight = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()));
-    const isTaskOverdue = dueDate.getTime() < todayAtUTCMidnight.getTime();
-    const isTaskToday = dueDate.getTime() === todayAtUTCMidnight.getTime();
-    const formatted = new Date(todo.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
+    const isTaskOverdue = parsedDueDate.getTime() < todayAtUTCMidnight.getTime();
+    const isTaskToday = parsedDueDate.getTime() === todayAtUTCMidnight.getTime();
+    const formatted = new Date(targetDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
     return { isOverdue: isTaskOverdue && !todo.completed, isToday: isTaskToday && !todo.completed, formattedDueDate: formatted };
-  }, [todo.dueDate, todo.completed]);
+  }, [todo.completed, dueDate]);
+
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setImageError(null);
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+      if (file.size > MAX_FILE_SIZE) {
+        setImageError('File is too large (max 5MB).');
+        e.target.value = '';
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImageUrl(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleDateSelect = (date: Date) => {
+    setDueDate(date.toISOString().split('T')[0]);
+    setIsDatePickerOpen(false);
+  };
+
+  const formattedLongDueDate = dueDate ? new Date(dueDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' }) : null;
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+  };
+
+  const handleAddTag = () => {
+    const newTag = currentTag.trim().replace(/[^a-zA-Z0-9]/g, '');
+    if (newTag && !tags.includes(newTag)) {
+      setTags([...tags, newTag]);
+    }
+    setCurrentTag('');
+  };
+
+  const handleDeleteTag = (tagToDelete: string) => {
+    setTags(tags.filter(tag => tag !== tagToDelete));
+  };
+
+  const handleTagKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleAddTag();
+    }
+  };
 
   return (
     <div className={`group relative border-b border-[rgba(var(--border-primary-rgb))] hover:bg-[rgba(var(--background-secondary-rgb),0.5)] transition-all duration-300 ease-out ${isMounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
@@ -141,15 +231,32 @@ const TodoItem: React.FC<TodoItemProps> = ({ todo, onToggleTodo, onDeleteTodo, o
 
         <div className="flex-grow min-w-0">
           {isEditing ? (
-            <input
-              ref={inputRef}
-              type="text"
-              value={editText}
-              onChange={(e) => setEditText(e.target.value)}
-              onKeyDown={handleKeyDown}
-              onBlur={handleSave}
-              className="w-full bg-transparent text-base text-[rgba(var(--foreground-primary-rgb))] focus:outline-none"
-            />
+            <>
+              <textarea
+                ref={inputRef as any}
+                value={editText}
+                onChange={(e) => setEditText(e.target.value)}
+                onKeyDown={handleKeyDown}
+                rows={2}
+                className="w-full bg-transparent text-base text-[rgba(var(--foreground-primary-rgb))] focus:outline-none resize-none"
+              />
+              <div className="flex items-center justify-end space-x-3 pt-2 border-t border-[rgba(var(--border-primary-rgb))] mt-2">
+                <button 
+                  type="button"
+                  onClick={handleSave}
+                  className="bg-[rgba(var(--button-primary-bg-rgb))] text-[rgba(var(--button-primary-text-rgb))] font-bold px-4 py-1.5 rounded-full hover:opacity-90 transition-opacity"
+                >
+                  Save
+                </button>
+                <button 
+                  type="button"
+                  onClick={handleCancel}
+                  className="border border-[rgba(var(--border-secondary-rgb))] text-[rgba(var(--foreground-primary-rgb))] px-4 py-1.5 rounded-full hover:bg-[rgba(var(--foreground-primary-rgb),0.05)] transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </>
           ) : (
             <>
               <p className={`text-[15px] leading-5 break-words ${todo.completed ? 'text-[rgba(var(--foreground-secondary-rgb))] line-through' : 'text-[rgba(var(--foreground-primary-rgb))]'}`}>
@@ -157,8 +264,13 @@ const TodoItem: React.FC<TodoItemProps> = ({ todo, onToggleTodo, onDeleteTodo, o
               </p>
               
               {todo.imageUrl && (
-                <div className="mt-3" onClick={() => openLightbox(todo.imageUrl!)}>
-                  <img src={todo.imageUrl} alt="Task attachment" className="rounded-2xl border border-[rgba(var(--border-primary-rgb))] max-h-72 w-auto cursor-pointer" />
+                <div className="mt-3">
+                  <img
+                    src={todo.imageUrl}
+                    alt="Task attachment"
+                    className="rounded-2xl border border-[rgba(var(--border-primary-rgb))] max-h-72 w-auto cursor-pointer"
+                    onClick={(e) => { e.stopPropagation(); openLightbox(todo.imageUrl!); }}
+                  />
                 </div>
               )}
 
@@ -170,6 +282,18 @@ const TodoItem: React.FC<TodoItemProps> = ({ todo, onToggleTodo, onDeleteTodo, o
                       <HiCalendar className="w-3.5 h-3.5" />
                       <span>{isToday ? 'Today' : formattedDueDate}</span>
                   </div>
+                )}
+                {focusSession.todoId === todo.id && (
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); openFocusModal(); }}
+                    className={`flex items-center space-x-1.5 text-[13px] px-2 py-0.5 rounded-full transition-colors ${focusSession.isActive ? 'bg-[rgba(var(--accent-rgb),0.18)] text-[rgba(var(--accent-rgb))]' : 'bg-[rgba(var(--background-tertiary-rgb))] text-[rgba(var(--foreground-secondary-rgb))]'}`}
+                    title={focusSession.isActive ? 'Focus running' : 'Focus paused'}
+                  >
+                    {focusSession.isActive ? <HiPlay className="w-3.5 h-3.5"/> : <HiPause className="w-3.5 h-3.5"/>}
+                    <span>{formatTime(focusSession.timeRemaining)}</span>
+                    {focusSession.cycles > 0 && <span className="opacity-70">• Cycle {focusSession.cycles}</span>}
+                  </button>
                 )}
                 {todo.tags.length > 0 && (
                   <div className="flex items-center flex-wrap gap-1.5">
@@ -235,38 +359,64 @@ const TodoItem: React.FC<TodoItemProps> = ({ todo, onToggleTodo, onDeleteTodo, o
         </div>
 
         <div className="flex items-center space-x-0.5 ml-4 flex-shrink-0 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity self-start mt-1">
-          <div className="relative" ref={priorityPickerRef}>
-            <Tooltip text="Change priority">
-              <button onClick={() => setIsPriorityPickerOpen(prev => !prev)} className="p-2 rounded-full hover:bg-[rgba(var(--background-tertiary-rgb))] transition-colors duration-200">
-                  <HiFlag className={`w-5 h-5 ${priorityIconColor[todo.priority]}`} />
-              </button>
-            </Tooltip>
-            <PriorityPicker isOpen={isPriorityPickerOpen} onClose={() => setIsPriorityPickerOpen(false)} onSelect={(p) => handleSetPriority(todo.id, p)} currentPriority={todo.priority} />
-          </div>
-          {!todo.completed && (
-             <Tooltip text="Start focus session">
-               <button onClick={() => startFocusSession(todo.id)} className="p-2 rounded-full hover:bg-[rgba(var(--accent-rgb),0.1)] text-[rgba(var(--foreground-secondary-rgb))] hover:text-[rgba(var(--accent-rgb))] transition-colors">
-                  <HiPlay className="w-5 h-5" />
-              </button>
-             </Tooltip>
-          )}
           <Tooltip text={todo.isImportant ? 'Unmark as important' : 'Mark as important'}>
             <button onClick={() => onToggleImportant(todo.id)} className={`p-2 rounded-full hover:bg-[rgba(var(--warning-rgb),0.1)] transition-colors ${todo.isImportant ? 'text-[rgba(var(--warning-rgb))]' : 'text-[rgba(var(--foreground-secondary-rgb))]'}`}>
               {todo.isImportant ? <HiStar className="w-5 h-5" /> : <HiOutlineStar className="w-5 h-5" />}
             </button>
           </Tooltip>
-          {!todo.completed && (
-            <Tooltip text="Edit task">
-              <button onClick={handleEdit} className="p-2 rounded-full hover:bg-[rgba(var(--accent-rgb),0.1)] text-[rgba(var(--foreground-secondary-rgb))] hover:text-[rgba(var(--accent-rgb))] transition-colors">
-                <HiPencil className="w-5 h-5" />
+          <div className="relative" ref={moreOptionsRef}>
+            <Tooltip text="More options">
+              <button
+                onClick={() => setIsMoreOptionsOpen(prev => !prev)}
+                className="p-2 rounded-full hover:bg-[rgba(var(--background-tertiary-rgb))] text-[rgba(var(--foreground-secondary-rgb))] hover:text-[rgba(var(--foreground-primary-rgb))] transition-colors"
+                aria-label="More options"
+                aria-haspopup="true"
+                aria-expanded={isMoreOptionsOpen}
+              >
+                <HiDotsHorizontal className="w-5 h-5" />
               </button>
             </Tooltip>
-          )}
-          <Tooltip text="Delete task">
-            <button onClick={() => onDeleteTodo(todo.id)} className="p-2 rounded-full hover:bg-[rgba(var(--danger-rgb),0.1)] text-[rgba(var(--foreground-secondary-rgb))] hover:text-[rgba(var(--danger-rgb))] transition-colors">
-              <HiTrash className="w-5 h-5" />
-            </button>
-          </Tooltip>
+            {isMoreOptionsOpen && (
+              <div className="absolute right-0 mt-2 w-56 bg-[rgba(var(--background-primary-rgb))] rounded-xl shadow-lg border border-[rgba(var(--border-primary-rgb))] z-30 py-1 animate-fade-in">
+                {!todo.completed && (
+                  <button
+                    type="button"
+                    onClick={() => { handleEdit(); setIsMoreOptionsOpen(false); }}
+                    className="w-full text-left flex items-center space-x-3 px-3 py-2 text-sm text-[rgba(var(--foreground-primary-rgb))] hover:bg-[rgba(var(--foreground-primary-rgb),0.05)] transition-colors"
+                  >
+                    <HiPencil className="w-5 h-5" />
+                    <span>Edit task</span>
+                  </button>
+                )}
+                {!todo.completed && (
+                  <button
+                    type="button"
+                    onClick={() => { 
+                      // If this task already has an active focus session, just reopen the modal without restarting.
+                      if (focusSession.todoId === todo.id && focusSession.isActive) {
+                        openFocusModal();
+                      } else {
+                        startFocusSession(todo.id);
+                      }
+                      setIsMoreOptionsOpen(false); 
+                    }}
+                    className="w-full text-left flex items-center space-x-3 px-3 py-2 text-sm text-[rgba(var(--foreground-primary-rgb))] hover:bg-[rgba(var(--foreground-primary-rgb),0.05)] transition-colors"
+                  >
+                    <HiPlay className="w-5 h-5" />
+                    <span>Start focus session</span>
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => { onDeleteTodo(todo.id); setIsMoreOptionsOpen(false); }}
+                  className="w-full text-left flex items-center space-x-3 px-3 py-2 text-sm text-[rgba(var(--foreground-primary-rgb))] hover:bg-[rgba(var(--foreground-primary-rgb),0.05)] transition-colors"
+                >
+                  <HiTrash className="w-5 h-5" />
+                  <span>Delete task</span>
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

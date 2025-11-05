@@ -132,7 +132,7 @@ const AppContent: React.FC = () => {
     <div className="bg-[rgba(var(--background-primary-rgb))] min-h-screen text-[rgba(var(--foreground-primary-rgb))] font-sans">
       <div className="flex justify-center mx-auto" style={{ maxWidth: '1210px' }}>
         <LeftSidebar />
-        <main className="w-full md:w-[600px] border-l border-r border-[rgba(var(--border-primary-rgb))] pb-16 md:pb-0" style={{ minWidth: 0, minHeight: '100vh' }}>
+        <main className="w-full md:w-full lg:w-[600px] border-l border-r border-[rgba(var(--border-primary-rgb))] pb-16 md:pb-0" style={{ minWidth: 0, minHeight: '100vh' }}>
           {renderPage()}
         </main>
         <RightSidebar />

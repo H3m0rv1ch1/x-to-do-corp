@@ -20,7 +20,7 @@ const TAG_COLORS_PALETTE: { background: string; foreground: string }[] = [
 ];
 
 // Fix: Define a specific type for ambient sounds to ensure type safety.
-export type AmbientSound = 'none' | 'rain' | 'cafe' | 'forest';
+export type AmbientSound = 'none' | 'rain' | 'cafe' | 'forest' | 'lofi' | 'piano';
 
 export interface FocusSettings {
     focusDuration: number;
@@ -29,6 +29,7 @@ export interface FocusSettings {
     autoStart: boolean;
     sound: AmbientSound;
     volume: number;
+    ambientTrackIndex: number | null;
 }
 
 export type SessionMode = 'focus' | 'shortBreak' | 'longBreak';
@@ -59,7 +60,7 @@ export interface AppContextType {
   handleTagClick: (tag: string) => void;
   clearActiveTag: () => void;
   tagColors: TagColorMap;
-  handleAddTodo: (todoData: { text: string; imageUrl: string | null; dueDate: string | null; priority: Priority; subtasks: string[], tags: string[], recurrenceRule: { type: RecurrenceType } | null, reminderOffset: number | null }) => void;
+  handleAddTodo: (todoData: { text: string; imageUrl: string | null; dueDate: string | null; priority: Priority; subtasks: string[], tags: string[], recurrenceRule: { type: RecurrenceType } | null, reminderOffset: number | null }) => Promise<string>;
   handleToggleTodo: (id: string) => void;
   handleDeleteTodo: (id: string) => void;
   handleEditTodo: (id: string, newText: string) => void;
@@ -67,6 +68,7 @@ export interface AppContextType {
   handleToggleSubtask: (todoId: string, subtaskId: string) => void;
   handleEditSubtask: (todoId: string, subtaskId: string, newText: string) => void;
   handleSetPriority: (id: string, priority: Priority) => void;
+  handleUpdateTodo: (id: string, updates: Partial<Todo>) => void;
   handleClearCompletedTodos: () => void;
 
   // Notes
@@ -167,6 +169,7 @@ const defaultFocusSettings: FocusSettings = {
     autoStart: true,
     sound: 'none',
     volume: 0.5,
+    ambientTrackIndex: 0,
 };
 
 const defaultFocusSession: FocusSessionState = {
@@ -178,8 +181,49 @@ const defaultFocusSession: FocusSessionState = {
     cycles: 0,
 };
 
-// Fix: Define NOTIFICATION_SOUND to resolve reference error.
-const NOTIFICATION_SOUND = 'data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA/AGoAagA+AEkASgBCAEsASgBEAEsASwBCAEsASgBBAEsASQBCAEoASgBCAEsASwBCAEsA';
+// App branding for notifications
+const APP_NAME = 'X To-Do Corp';
+
+// Generate a PNG data URL from the app's SVG favicon to ensure
+// consistent notification icon rendering across browsers.
+async function getAppIconPng(): Promise<string> {
+    const CACHE_KEY = 'appIconPng192';
+    try {
+        const cached = localStorage.getItem(CACHE_KEY);
+        if (cached) return cached;
+    } catch {}
+    try {
+        const svgUrl = '/favicon.svg';
+        const svgText = await fetch(svgUrl).then(r => r.text());
+        const blob = new Blob([svgText], { type: 'image/svg+xml' });
+        const objUrl = URL.createObjectURL(blob);
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        const size = 192;
+        await new Promise<void>((resolve, reject) => {
+            img.onload = () => resolve();
+            img.onerror = () => reject(new Error('Icon load failed'));
+            img.src = objUrl;
+        });
+        const canvas = document.createElement('canvas');
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) throw new Error('Canvas unsupported');
+        ctx.clearRect(0, 0, size, size);
+        ctx.drawImage(img, 0, 0, size, size);
+        const pngDataUrl = canvas.toDataURL('image/png');
+        URL.revokeObjectURL(objUrl);
+        try { localStorage.setItem(CACHE_KEY, pngDataUrl); } catch {}
+        return pngDataUrl;
+    } catch {
+        // Fallback to the original SVG if conversion fails
+        return '/favicon.svg';
+    }
+}
+
+// Fix: Disable notification sound (silent) per user preference.
+const NOTIFICATION_SOUND = '';
 
 // Fix: Create and export AppProvider component
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
@@ -287,7 +331,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
 
     // Todos logic
-    const handleAddTodo = useCallback(async (todoData: { text: string; imageUrl: string | null; dueDate: string | null; priority: Priority; subtasks: string[], tags: string[], recurrenceRule: { type: RecurrenceType } | null, reminderOffset: number | null }) => {
+    const handleAddTodo = useCallback(async (todoData: { text: string; imageUrl: string | null; dueDate: string | null; priority: Priority; subtasks: string[], tags: string[], recurrenceRule: { type: RecurrenceType } | null, reminderOffset: number | null }): Promise<string> => {
         let { text, tags, dueDate } = { ...todoData };
         
         const tagParseResult = parseTextForTags(text);
@@ -320,6 +364,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         await db.putTodo(newTodo);
         addToast('Task added!', 'success');
         checkForAchievements({ todos: newTodos, notes });
+        return newTodo.id;
     }, [todos, notes, addToast, checkForAchievements]);
 
     const handleToggleTodo = useCallback(async (id: string) => {
@@ -400,6 +445,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setTodos(newTodos);
         await db.putTodo(newTodos.find(t => t.id === id)!);
         addToast(`Priority set to ${priority}`, 'info');
+        checkForAchievements({ todos: newTodos, notes });
+    }, [todos, notes, addToast, checkForAchievements]);
+
+    const handleUpdateTodo = useCallback(async (id: string, updates: Partial<Todo>) => {
+        const newTodos = todos.map(t => t.id === id ? { ...t, ...updates } : t);
+        setTodos(newTodos);
+        const updated = newTodos.find(t => t.id === id)!;
+        await db.putTodo(updated);
+        addToast('Task updated.', 'success');
         checkForAchievements({ todos: newTodos, notes });
     }, [todos, notes, addToast, checkForAchievements]);
 
@@ -496,7 +550,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             case 'important':
                 tempTodos = tempTodos.filter(todo => todo.isImportant);
                 break;
-            default: // 'all'
+            default: // 'all' -> show only not completed tasks
+                tempTodos = tempTodos.filter(todo => !todo.completed);
                 break;
         }
 
@@ -506,9 +561,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 case 'oldest':
                     return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
                 case 'dueDate': {
-                    if (a.dueDate && b.dueDate) return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
-                    if (a.dueDate) return -1;
-                    if (b.dueDate) return 1;
+                    const parseLocalDate = (d?: string) => d ? new Date(`${d}T00:00:00`).getTime() : null;
+                    const aTime = parseLocalDate(a.dueDate);
+                    const bTime = parseLocalDate(b.dueDate);
+                    if (aTime !== null && bTime !== null) return aTime - bTime;
+                    if (aTime !== null) return -1;
+                    if (bTime !== null) return 1;
                     return 0;
                 }
                 case 'priority': {
@@ -646,8 +704,60 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         });
     }, [addToast]);
 
+    const showAppNotification = useCallback(async (body: string, tag: string) => {
+        if (notificationPermission !== 'granted') return;
+        const icon = await getAppIconPng();
+        const options: NotificationOptions = {
+            body,
+            icon,
+            badge: icon,
+            tag,
+            requireInteraction: true,
+            // Include a target URL so the service worker can open/focus the app
+            data: { url: location.origin + '/' },
+        };
+        try {
+            if ('serviceWorker' in navigator) {
+                const reg = await navigator.serviceWorker.ready;
+                // Use SW showNotification for better reliability when app is backgrounded
+                await reg.showNotification(APP_NAME, options);
+                return;
+            }
+        } catch {}
+        try {
+            const n = new Notification(APP_NAME, options);
+            // Fallback click handler when SW path isn't available
+            try {
+                const isTauriEnv = () => typeof window !== 'undefined' && (window as any).__TAURI__ !== undefined;
+                n.onclick = () => {
+                    // Prefer Tauri window focus when available
+                    if (isTauriEnv()) {
+                        void (async () => {
+                            try {
+                                const winMod = await import('@tauri-apps/api/window');
+                                const appWindow = (winMod as any).appWindow;
+                                if (appWindow) {
+                                    try { await appWindow.unminimize(); } catch {}
+                                    try { await appWindow.show(); } catch {}
+                                    try { await appWindow.setFocus(); } catch {}
+                                }
+                            } catch {}
+                        })();
+                    } else {
+                        // Browser: only focus the existing tab; do not navigate
+                        try { window.focus(); } catch {}
+                    }
+                };
+            } catch {}
+        } catch {}
+    }, [notificationPermission]);
+
+    const sendReminderNotification = useCallback((title: string, body: string) => {
+        void showAppNotification(body, 'task-reminder');
+    }, [showAppNotification]);
+
     useEffect(() => {
-        const checkReminders = () => {
+        const checkReminders = async () => {
             if (notificationPermission !== 'granted') return;
 
             const now = new Date();
@@ -657,13 +767,18 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 if (!todo.completed && todo.dueDate && todo.reminderOffset !== null && !todo.notified) {
                     const dueDate = new Date(`${todo.dueDate}T23:59:59`);
                     const reminderTime = new Date(dueDate.getTime() - todo.reminderOffset * 60000);
-                    
                     const oneDayAfterDueDate = new Date(dueDate.getTime() + 24 * 60 * 60 * 1000);
+
                     if (now >= reminderTime && now < oneDayAfterDueDate) {
-                        new Notification('Task Reminder', { 
-                            body: todo.text,
-                            icon: '/favicon.svg'
-                        });
+                        const title = 'Task Reminder';
+                        const body = `${todo.text}${todo.dueDate ? ` • Due ${todo.dueDate}` : ''}`;
+                        sendReminderNotification(title, body);
+                        // Optional: play a short sound to draw attention
+                        try {
+                            const audio = new Audio(NOTIFICATION_SOUND);
+                            audio.volume = focusSettings.volume;
+                            audio.play().catch(() => {});
+                        } catch {}
                         todosToUpdate.push({ ...todo, notified: true });
                     }
                 }
@@ -671,17 +786,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
             if (todosToUpdate.length > 0) {
                 const todosToUpdateMap = new Map(todosToUpdate.map(t => [t.id, t]));
-                setTodos(prevTodos => 
-                    prevTodos.map(t => todosToUpdateMap.get(t.id) || t)
-                );
+                setTodos(prevTodos => prevTodos.map(t => todosToUpdateMap.get(t.id) || t));
                 todosToUpdate.forEach(t => db.putTodo(t));
             }
         };
-        
-        const interval = setInterval(checkReminders, 30000); // Check every 30 seconds
-        
+
+        const interval = setInterval(() => { void checkReminders(); }, 30000); // Check every 30 seconds
         return () => clearInterval(interval);
-    }, [todos, notificationPermission]);
+    }, [todos, notificationPermission, sendReminderNotification, focusSettings.volume]);
 
     // Theme & Accent
     const setTheme = useCallback((themeName: 'light' | 'dark') => {
@@ -818,8 +930,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             initialDuration: duration,
             cycles: 0,
         });
+        // Proactively request notifications so end-of-timer reminder can be delivered
+        try {
+            if (notificationPermission === 'default') {
+                Notification.requestPermission().then((permission) => {
+                    setNotificationPermission(permission);
+                }).catch(() => {});
+            }
+        } catch {}
         setIsFocusModalOpen(true);
-    }, [focusSettings.focusDuration]);
+    }, [focusSettings.focusDuration, notificationPermission]);
 
     const toggleFocusSessionActive = useCallback(() => {
         setFocusSession(prev => ({ ...prev, isActive: !prev.isActive }));
@@ -831,10 +951,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }, []);
 
     const playNotificationSound = useCallback(() => {
-        const audio = new Audio(NOTIFICATION_SOUND);
-        audio.volume = focusSettings.volume;
-        audio.play();
-    }, [focusSettings.volume]);
+        // Sound alerts disabled per user preference: notifications only.
+    }, []);
     
     // Timer effect for Focus Mode
     useEffect(() => {
@@ -845,9 +963,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         } else if (focusSession.isActive && focusSession.timeRemaining <= 0) {
             // Timer finished
             playNotificationSound();
-            if (notificationPermission === 'granted') {
-                new Notification('Focus Timer', { body: `${focusSession.mode} session complete!` });
-            }
+            void showAppNotification(`${focusSession.mode} session complete!`, 'focus-timer');
             if (focusSession.mode === 'focus') {
                 const newCycles = focusSession.cycles + 1;
                 const nextMode = newCycles % 4 === 0 ? 'longBreak' : 'shortBreak';
@@ -888,6 +1004,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         handleToggleSubtask,
         handleEditSubtask,
         handleSetPriority,
+        handleUpdateTodo,
         handleClearCompletedTodos,
         notes,
         filteredNotes,
@@ -950,6 +1067,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }), [
         isLoading, todos, filteredTodos, filter, sortOrder, searchQuery, activeTag, tagColors, 
         handleAddTodo, handleToggleTodo, handleDeleteTodo, handleEditTodo, handleToggleImportant, handleToggleSubtask, handleEditSubtask, handleSetPriority, handleClearCompletedTodos,
+        handleUpdateTodo,
         notes, filteredNotes, notesSearchQuery, notesSortOrder, selectedNoteId,
         handleAddNote, handleUpdateNote, handleDeleteNote, handlePinNote, handleDeleteAllNotes,
         userProfile, handleSaveProfile, page, pageTitle, isAddTaskModalOpen, openAddTaskModal, closeAddTaskModal,
