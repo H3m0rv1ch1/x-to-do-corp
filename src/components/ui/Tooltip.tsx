@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 
 interface TooltipProps {
@@ -10,8 +10,10 @@ interface TooltipProps {
 const Tooltip: React.FC<TooltipProps> = ({ children, text, placement = 'above' }) => {
   const [isVisible, setIsVisible] = useState(false);
   const timeoutRef = useRef<number | null>(null);
+  const autoHideRef = useRef<number | null>(null);
   const anchorRef = useRef<HTMLDivElement | null>(null);
   const [coords, setCoords] = useState<{ left: number; top: number; placement: 'above' | 'below' } | null>(null);
+  const AUTO_HIDE_MS = 1800; // auto hide to avoid sticky tooltips
 
   // Don't render a wrapper if there's no tooltip text
   if (!text) {
@@ -40,6 +42,14 @@ const Tooltip: React.FC<TooltipProps> = ({ children, text, placement = 'above' }
         const top = finalPlacement === 'above' ? rect.top - margin : rect.bottom + margin;
         setCoords({ left, top, placement: finalPlacement });
       }
+
+      // Ensure it disappears after a short period even if cursor stays
+      if (autoHideRef.current) {
+        clearTimeout(autoHideRef.current);
+      }
+      autoHideRef.current = window.setTimeout(() => {
+        setIsVisible(false);
+      }, AUTO_HIDE_MS);
     }, 250); // slight delay for smoother feel
   };
 
@@ -49,14 +59,46 @@ const Tooltip: React.FC<TooltipProps> = ({ children, text, placement = 'above' }
       clearTimeout(timeoutRef.current);
       timeoutRef.current = null;
     }
+    if (autoHideRef.current) {
+      clearTimeout(autoHideRef.current);
+      autoHideRef.current = null;
+    }
     setIsVisible(false);
   };
+
+  // Hide on click of the anchor content (common UX expectation)
+  const handleClickCapture = () => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+    if (autoHideRef.current) {
+      clearTimeout(autoHideRef.current);
+      autoHideRef.current = null;
+    }
+    setIsVisible(false);
+  };
+
+  // Hide on viewport changes like scroll/resize and on Escape
+  useEffect(() => {
+    const hide = () => setIsVisible(false);
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') hide(); };
+    window.addEventListener('scroll', hide, { passive: true });
+    window.addEventListener('resize', hide);
+    window.addEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('scroll', hide);
+      window.removeEventListener('resize', hide);
+      window.removeEventListener('keydown', onKey);
+    };
+  }, []);
 
   return (
     <div 
       className="relative inline-block"
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
+      onClickCapture={handleClickCapture}
       ref={anchorRef}
     >
       {children}

@@ -4,6 +4,7 @@ import { HiOutlinePhotograph, HiOutlineCalendar, HiOutlineBell, HiX, HiDotsHoriz
 import { HiArrowPath, HiOutlineFlag, HiFlag } from 'react-icons/hi2';
 import { HiOutlineViewList } from 'react-icons/hi';
 import { Avatar, DatePicker, RecurrencePicker, ReminderPicker, PriorityPicker, Tooltip } from '@/components/ui';
+import PortalMenu from '@/components/ui/PortalMenu';
 import { type UserProfile, type RecurrenceType, type Priority, type Todo } from '@/types';
 import useClickOutside from '@/hooks/useClickOutside';
 
@@ -43,6 +44,7 @@ const AddTodoForm: React.FC<AddTodoFormProps> = ({ onAddTodo, userProfile, onTas
   const reminderPickerRef = useRef<HTMLDivElement>(null);
   const [isMoreOptionsOpen, setIsMoreOptionsOpen] = useState(false);
   const moreOptionsRef = useRef<HTMLDivElement>(null);
+  const moreOptionsButtonRef = useRef<HTMLButtonElement>(null);
 
   useClickOutside(datePickerRef, () => setIsDatePickerOpen(false));
   useClickOutside(priorityPickerRef, () => setIsPriorityPickerOpen(false));
@@ -415,6 +417,7 @@ const AddTodoForm: React.FC<AddTodoFormProps> = ({ onAddTodo, userProfile, onTas
               <div className="relative" ref={moreOptionsRef}>
                 <Tooltip text="More options">
                   <button
+                    ref={moreOptionsButtonRef}
                     type="button"
                     onClick={() => setIsMoreOptionsOpen(prev => !prev)}
                     className="p-2 rounded-full text-[rgba(var(--accent-rgb))] hover:bg-[rgba(var(--accent-rgb),0.1)] transition-colors duration-200 flex items-center justify-center"
@@ -423,26 +426,26 @@ const AddTodoForm: React.FC<AddTodoFormProps> = ({ onAddTodo, userProfile, onTas
                     <HiDotsHorizontal className="w-5 h-5" />
                   </button>
                 </Tooltip>
-                {isMoreOptionsOpen && (
-                  <div className="absolute top-full left-0 mt-2 w-56 bg-[rgba(var(--background-primary-rgb))] rounded-xl shadow-lg border border-[rgba(var(--border-primary-rgb))] z-30 py-1 animate-fade-in">
+                <PortalMenu anchorRef={moreOptionsButtonRef} isOpen={isMoreOptionsOpen}>
+                  <div className="w-56 bg-[rgba(var(--background-primary-rgb))] rounded-xl shadow-lg border border-[rgba(var(--border-primary-rgb))] py-1 animate-fade-in">
                     {moreOptions.map((option, index) => (
                       <div key={index} className="relative" ref={option.ref}>
-                         <Tooltip text={option.tooltip || ''}>
-                           <button
-                             type="button"
-                             onClick={() => { option.action(); if (!option.picker) setIsMoreOptionsOpen(false); }}
-                             disabled={option.disabled}
-                             className={`w-full text-left flex items-center space-x-3 px-3 py-2 text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${option.isActive ? 'text-[rgba(var(--accent-rgb))] bg-[rgba(var(--accent-rgb),0.1)]' : 'text-[rgba(var(--foreground-primary-rgb))] hover:bg-[rgba(var(--foreground-primary-rgb),0.05)]'}`}
-                           >
-                             <option.icon className="w-5 h-5" />
-                             <span>{option.label}</span>
-                           </button>
-                         </Tooltip>
-                         {option.picker}
+                        <Tooltip text={option.tooltip || ''}>
+                          <button
+                            type="button"
+                            onClick={() => { option.action(); if (!option.picker) setIsMoreOptionsOpen(false); }}
+                            disabled={option.disabled}
+                            className={`w-full text-left flex items-center space-x-3 px-3 py-2 text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${option.isActive ? 'text-[rgba(var(--accent-rgb))] bg-[rgba(var(--accent-rgb),0.1)]' : 'text-[rgba(var(--foreground-primary-rgb))] hover:bg-[rgba(var(--foreground-primary-rgb),0.05)]'}`}
+                          >
+                            <option.icon className="w-5 h-5" />
+                            <span>{option.label}</span>
+                          </button>
+                        </Tooltip>
+                        {option.picker}
                       </div>
                     ))}
                   </div>
-                )}
+                </PortalMenu>
               </div>
             </div>
             <div className="flex items-center justify-end space-x-4 mt-3 sm:mt-0 group">

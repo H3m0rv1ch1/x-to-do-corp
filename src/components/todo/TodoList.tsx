@@ -78,6 +78,7 @@ const TodoList: React.FC<TodoListProps> = () => {
   const [isWelcomeVisible, setIsWelcomeVisible] = useState(false);
   const [composerEditId, setComposerEditId] = useState<string | null>(null);
   const composerRef = useRef<HTMLDivElement>(null);
+  const [isComposerVisible, setIsComposerVisible] = useState(false);
 
   useEffect(() => {
     const hasDismissedWelcome = localStorage.getItem('hasDismissedWelcomeGuide');
@@ -88,6 +89,20 @@ const TodoList: React.FC<TodoListProps> = () => {
         setIsWelcomeVisible(false);
     }
   }, [todos.length]);
+
+  // Track composer visibility (matches Tailwind 'md' breakpoint)
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 768px)');
+    const update = () => setIsComposerVisible(mq.matches);
+    update();
+    // Support both modern and legacy listeners
+    mq.addEventListener?.('change', update);
+    mq.addListener?.(update);
+    return () => {
+      mq.removeEventListener?.('change', update);
+      mq.removeListener?.(update);
+    };
+  }, []);
   
   // Auto-hide welcome guide when first task is added
   useEffect(() => {
@@ -129,6 +144,11 @@ const TodoList: React.FC<TodoListProps> = () => {
     return filteredTodos;
   }, [filteredTodos, filter]);
 
+  // Open the composer at the top to edit an existing task
+  const handleOpenComposerEdit = (id: string) => {
+    setComposerEditId(id);
+  };
+
   const renderContent = () => {
     if (isLoading) {
       return (
@@ -158,7 +178,7 @@ const TodoList: React.FC<TodoListProps> = () => {
             onToggleImportant={handleToggleImportant}
             onToggleSubtask={handleToggleSubtask}
             onEditSubtask={handleEditSubtask}
-            onOpenComposerEdit={(id) => setComposerEditId(id)}
+            onOpenComposerEdit={handleOpenComposerEdit}
           />
         ))}
       </div>
@@ -216,7 +236,6 @@ const TodoList: React.FC<TodoListProps> = () => {
         <AddTodoForm 
           onAddTodo={handleAddTodo} 
           userProfile={userProfile}
-          onTaskAdded={(id) => setComposerEditId(id)}
           editingTodo={composerEditId ? todos.find(t => t.id === composerEditId) || null : null}
           onUpdateTodo={handleUpdateTodo}
           onEditCancel={() => setComposerEditId(null)}

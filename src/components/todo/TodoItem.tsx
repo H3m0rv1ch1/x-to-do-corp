@@ -5,6 +5,7 @@ import { HiArrowPath, HiOutlineFlag, HiFlag } from 'react-icons/hi2';
 import { useAppContext } from '@/hooks/useAppContext';
 import { linkify } from '@/utils/textParser';
 import { Tooltip, TagBadge, DatePicker, RecurrencePicker, ReminderPicker, PriorityPicker } from '@/components/ui';
+import PortalMenu from '@/components/ui/PortalMenu';
 import useClickOutside from '@/hooks/useClickOutside';
 
 interface TodoItemProps {
@@ -60,6 +61,7 @@ const TodoItem: React.FC<TodoItemProps> = ({ todo, onToggleTodo, onDeleteTodo, o
   const recurrencePickerRef = useRef<HTMLDivElement>(null);
   const reminderPickerRef = useRef<HTMLDivElement>(null);
   const moreOptionsRef = useRef<HTMLDivElement>(null);
+  const moreOptionsButtonRef = useRef<HTMLButtonElement>(null);
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
   const [isPriorityPickerOpen, setIsPriorityPickerOpen] = useState(false);
   const [isRecurrencePickerOpen, setIsRecurrencePickerOpen] = useState(false);
@@ -358,7 +360,7 @@ const TodoItem: React.FC<TodoItemProps> = ({ todo, onToggleTodo, onDeleteTodo, o
           )}
         </div>
 
-        <div className="flex items-center space-x-0.5 ml-4 flex-shrink-0 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity self-start mt-1">
+        <div className={`flex items-center space-x-0.5 ml-4 flex-shrink-0 transition-opacity self-start mt-1 ${isMoreOptionsOpen ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 focus-within:opacity-100'}`}>
           <Tooltip text={todo.isImportant ? 'Unmark as important' : 'Mark as important'}>
             <button onClick={() => onToggleImportant(todo.id)} className={`p-2 rounded-full hover:bg-[rgba(var(--warning-rgb),0.1)] transition-colors ${todo.isImportant ? 'text-[rgba(var(--warning-rgb))]' : 'text-[rgba(var(--foreground-secondary-rgb))]'}`}>
               {todo.isImportant ? <HiStar className="w-5 h-5" /> : <HiOutlineStar className="w-5 h-5" />}
@@ -367,6 +369,8 @@ const TodoItem: React.FC<TodoItemProps> = ({ todo, onToggleTodo, onDeleteTodo, o
           <div className="relative" ref={moreOptionsRef}>
             <Tooltip text="More options">
               <button
+                ref={moreOptionsButtonRef}
+                onMouseDown={(e) => { e.stopPropagation(); }}
                 onClick={() => setIsMoreOptionsOpen(prev => !prev)}
                 className="p-2 rounded-full hover:bg-[rgba(var(--background-tertiary-rgb))] text-[rgba(var(--foreground-secondary-rgb))] hover:text-[rgba(var(--foreground-primary-rgb))] transition-colors"
                 aria-label="More options"
@@ -376,8 +380,8 @@ const TodoItem: React.FC<TodoItemProps> = ({ todo, onToggleTodo, onDeleteTodo, o
                 <HiDotsHorizontal className="w-5 h-5" />
               </button>
             </Tooltip>
-            {isMoreOptionsOpen && (
-              <div className="absolute right-0 mt-2 w-56 bg-[rgba(var(--background-primary-rgb))] rounded-xl shadow-lg border border-[rgba(var(--border-primary-rgb))] z-30 py-1 animate-fade-in">
+            <PortalMenu anchorRef={moreOptionsButtonRef} isOpen={isMoreOptionsOpen}>
+              <div className="w-56 bg-[rgba(var(--background-primary-rgb))] rounded-xl shadow-lg border border-[rgba(var(--border-primary-rgb))] py-1 animate-fade-in">
                 {!todo.completed && (
                   <button
                     type="button"
@@ -392,7 +396,6 @@ const TodoItem: React.FC<TodoItemProps> = ({ todo, onToggleTodo, onDeleteTodo, o
                   <button
                     type="button"
                     onClick={() => { 
-                      // If this task already has an active focus session, just reopen the modal without restarting.
                       if (focusSession.todoId === todo.id && focusSession.isActive) {
                         openFocusModal();
                       } else {
@@ -415,7 +418,7 @@ const TodoItem: React.FC<TodoItemProps> = ({ todo, onToggleTodo, onDeleteTodo, o
                   <span>Delete task</span>
                 </button>
               </div>
-            )}
+            </PortalMenu>
           </div>
         </div>
       </div>
