@@ -8,3 +8,4 @@ export { default as PriorityPicker } from './PriorityPicker';
 export { default as RecurrencePicker } from './RecurrencePicker';
 export { default as ReminderPicker } from './ReminderPicker';
 export { default as DeveloperPromo } from './DeveloperPromo';
+export { default as Select } from './Select';

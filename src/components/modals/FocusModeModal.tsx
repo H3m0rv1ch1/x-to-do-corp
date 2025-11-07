@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { HiX, HiPlay, HiPause, HiRefresh, HiCog, HiCheck, HiArrowsExpand, HiOutlineArrowsExpand, HiVolumeUp, HiVolumeOff } from 'react-icons/hi';
+import { HiX, HiPlay, HiPause, HiRefresh, HiCog, HiCheck, HiArrowsExpand, HiOutlineArrowsExpand, HiVolumeUp, HiVolumeOff, HiStop } from 'react-icons/hi';
 import { useAppContext } from '@/hooks/useAppContext';
+import { Select } from '@/components/ui';
 import { SessionMode, AmbientSound } from '@/contexts/AppContext';
 import FocusMusicPlayer from './FocusMusicPlayer';
 import useClickOutside from '@/hooks/useClickOutside';
@@ -89,6 +90,13 @@ const FocusModeModal: React.FC = () => {
         }
     };
 
+    const handleStopFocus = () => {
+        try { document.exitFullscreen(); } catch {}
+        try { ambientAudioRef.current?.pause(); } catch {}
+        updateFocusSettings({ sound: 'none' });
+        stopFocusSession();
+    };
+
     useEffect(() => {
         const handleFullScreenChange = () => setIsFullScreen(!!document.fullscreenElement);
         document.addEventListener('fullscreenchange', handleFullScreenChange);
@@ -159,11 +167,14 @@ const FocusModeModal: React.FC = () => {
                             </div>
 
                             {/* Controls */}
-                            <div className="flex justify-center items-center gap-4 mt-4">
-                                <button onClick={toggleFocusSessionActive} className="bg-[rgba(var(--accent-rgb))] text-[rgba(var(--foreground-on-accent-rgb))] w-16 h-16 md:w-20 md:h-20 rounded-full flex items-center justify-center text-2xl md:text-3xl shadow-lg hover:opacity-90 transition-opacity">
-                                    {isActive ? <HiPause className="w-8 h-8 md:w-10 md:h-10"/> : <HiPlay className="w-8 h-8 md:w-10 md:h-10"/>}
+                            <div className="flex justify-center items-center gap-3 mt-4">
+                                <button aria-label="Play or pause focus" onClick={toggleFocusSessionActive} className="bg-[rgba(var(--accent-rgb))] text-[rgba(var(--foreground-on-accent-rgb))] w-12 h-12 md:w-14 md:h-14 rounded-full flex items-center justify-center shadow-lg hover:opacity-90 transition-opacity">
+                                    {isActive ? <HiPause className="w-6 h-6 md:w-7 md:h-7"/> : <HiPlay className="w-6 h-6 md:w-7 md:h-7"/>}
                                 </button>
-                                <button onClick={resetTimer} className="bg-[rgba(var(--background-secondary-rgb),0.5)] backdrop-blur-sm text-[rgba(var(--foreground-primary-rgb))] w-12 h-12 md:w-14 md:h-14 rounded-full flex items-center justify-center text-xl shadow-lg hover:bg-[rgba(var(--border-primary-rgb))] transition-colors">
+                                <button aria-label="Stop focus session" onClick={handleStopFocus} title="Stop Focus" className="bg-[rgba(var(--danger-rgb))] text-[rgba(var(--foreground-on-accent-rgb))] w-12 h-12 md:w-14 md:h-14 rounded-full flex items-center justify-center shadow-lg hover:opacity-90">
+                                    <HiStop className="w-6 h-6 md:w-7 md:h-7" />
+                                </button>
+                                <button aria-label="Reset timer" onClick={resetTimer} className="bg-[rgba(var(--background-secondary-rgb),0.5)] backdrop-blur-sm text-[rgba(var(--foreground-primary-rgb))] w-12 h-12 md:w-14 md:h-14 rounded-full flex items-center justify-center shadow-lg hover:bg-[rgba(var(--border-primary-rgb))] transition-colors">
                                     <HiRefresh className="w-6 h-6 md:w-7 md:h-7"/>
                                 </button>
                             </div>
@@ -229,15 +240,23 @@ const FocusModeModal: React.FC = () => {
                             </div>
                              <div>
                                 <label className="text-xs font-bold text-[rgba(var(--foreground-secondary-rgb))]">AMBIENT SOUND</label>
-                                <div className="flex items-center space-x-2 mt-2">
-                                    <select value={focusSettings.sound} onChange={e => updateFocusSettings({ sound: e.target.value as AmbientSound })}>
-                                        {Object.entries(AMBIENT_SOUNDS)
-                                          .filter(([key, def]) => key === 'none' || def.srcs.length > 0)
-                                          .map(([key, { label }]) => (
-                                            <option key={key} value={key}>{label}</option>
-                                          ))}
-                                    </select>
-                                    <button onClick={() => updateFocusSettings({ volume: focusSettings.volume > 0 ? 0 : 0.5 })} className="p-2">
+                                <div className="mt-2 relative">
+                                    <Select
+                                      className="w-full"
+                                      fullWidth
+                                      buttonClassName="w-full pr-10"
+                                      value={focusSettings.sound}
+                                      onChange={(val) => updateFocusSettings({ sound: val as AmbientSound })}
+                                      options={Object.entries(AMBIENT_SOUNDS)
+                                        .filter(([key, def]) => key === 'none' || def.srcs.length > 0)
+                                        .map(([key, { label }]) => ({ value: key, label }))}
+                                      size="md"
+                                    />
+                                    <button
+                                      onClick={() => updateFocusSettings({ volume: focusSettings.volume > 0 ? 0 : 0.5 })}
+                                      className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-full hover:bg-[rgba(var(--background-tertiary-rgb))]"
+                                      aria-label={focusSettings.volume > 0 ? 'Mute ambient' : 'Unmute ambient'}
+                                    >
                                         {focusSettings.volume > 0 ? <HiVolumeUp className="w-5 h-5"/> : <HiVolumeOff className="w-5 h-5"/>}
                                     </button>
                                 </div>
@@ -251,15 +270,15 @@ const FocusModeModal: React.FC = () => {
                                     return (
                                         <div className="mt-3">
                                             <label className="text-xs font-bold text-[rgba(var(--foreground-secondary-rgb))]">TRACK</label>
-                                            <select
-                                                className="mt-1 w-full"
-                                                value={String(Math.min(Math.max(currentIndex, 0), sources.length - 1))}
-                                                onChange={(e) => updateFocusSettings({ ambientTrackIndex: Number(e.target.value) })}
-                                            >
-                                                {trackNames.map((name, idx) => (
-                                                    <option key={idx} value={idx}>{name}</option>
-                                                ))}
-                                            </select>
+                                            <Select
+                                              className="mt-1"
+                                              fullWidth
+                                              buttonClassName="w-full"
+                                              size="md"
+                                              value={String(Math.min(Math.max(currentIndex, 0), sources.length - 1))}
+                                              onChange={(val) => updateFocusSettings({ ambientTrackIndex: Number(val) })}
+                                              options={trackNames.map((name, idx) => ({ value: String(idx), label: name }))}
+                                            />
                                         </div>
                                     );
                                 })()}

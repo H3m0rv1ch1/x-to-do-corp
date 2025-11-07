@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { HiSearch, HiStar, HiOutlineStar } from 'react-icons/hi';
 import { MdOutlineKeyboard } from 'react-icons/md';
 import { useAppContext } from '@/hooks/useAppContext';
@@ -7,16 +7,24 @@ import { DeveloperPromo } from '@/components/ui';
 const RightSidebar: React.FC = () => {
   const { todos, setPage, setFilter, searchQuery, setSearchQuery, openShortcutsModal } = useAppContext();
 
-  const tasksToShow = useMemo(() => {
+  const [showAllPriorityTasks, setShowAllPriorityTasks] = useState(false);
+
+  const { allPriorityTasks, tasksToShow } = useMemo(() => {
     const importantPending = todos.filter(t => t.isImportant && !t.completed);
     const otherPending = todos.filter(t => !t.isImportant && !t.completed);
-    return [...importantPending, ...otherPending].slice(0, 4);
-  }, [todos]);
+    const combined = [...importantPending, ...otherPending];
+    return {
+      allPriorityTasks: combined,
+      tasksToShow: showAllPriorityTasks ? combined : combined.slice(0, 2),
+    };
+  }, [todos, showAllPriorityTasks]);
 
   const handleShowMore = () => {
     setFilter('all');
     setPage('home');
   }
+
+  const toggleShowAll = () => setShowAllPriorityTasks(prev => !prev);
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchQuery(e.target.value);
@@ -58,10 +66,15 @@ const RightSidebar: React.FC = () => {
             <p className="text-[rgba(var(--foreground-secondary-rgb))] text-sm">No pending tasks. Add one to get started!</p>
           )}
         </div>
-        {todos.filter(t => !t.completed).length > 4 && (
-           <button onClick={handleShowMore} className="text-[rgba(var(--accent-rgb))] hover:underline mt-4 text-sm w-full text-left p-2 -m-2">
-              Show more
+        {allPriorityTasks.length > 2 && (
+          <div className="mt-4 flex items-center justify-between">
+            <button onClick={toggleShowAll} className="text-[rgba(var(--accent-rgb))] hover:underline text-sm p-2 -m-2">
+              {showAllPriorityTasks ? 'Show less' : `Show more (${allPriorityTasks.length - 2})`}
             </button>
+            <button onClick={handleShowMore} className="text-[rgba(var(--foreground-secondary-rgb))] hover:underline text-xs p-2 -m-2">
+              View all
+            </button>
+          </div>
         )}
       </div>
 
