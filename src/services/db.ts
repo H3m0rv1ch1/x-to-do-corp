@@ -241,6 +241,7 @@ const clearStore = (storeName: string): Promise<void> => {
 export const getTodos = () => getAll<Todo>(TODO_STORE);
 export const putTodo = (todo: Todo) => put<Todo>(TODO_STORE, todo);
 export const deleteTodo = (id: string) => deleteItem(TODO_STORE, id);
+export const clearTodos = () => clearStore(TODO_STORE);
 
 // Note specific functions
 export const getNotes = () => getAll<Note>(NOTE_STORE);

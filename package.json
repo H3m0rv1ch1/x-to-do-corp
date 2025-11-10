@@ -17,7 +17,7 @@
   "homepage": "https://github.com/H3m0rv1ch1/x-to-do-corp#readme",
   "repository": {
     "type": "git",
-  "url": "https://github.com/H3m0rv1ch1/x-to-do-corp.git"
+    "url": "https://github.com/H3m0rv1ch1/x-to-do-corp.git"
   },
   "bugs": {
     "url": "https://github.com/H3m0rv1ch1/x-to-do-corp/issues"
@@ -37,6 +37,7 @@
   },
   "dependencies": {
     "@google/genai": "^1.24.0",
+    "@supabase/supabase-js": "^2.80.0",
     "dexie": "^4.0.0",
     "dexie-react-hooks": "^1.1.0",
     "react": "^19.2.0",

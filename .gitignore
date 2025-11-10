@@ -33,3 +33,4 @@ src-tauri/.env.local
 *.njsproj
 *.sln
 *.sw?
+x-todo-corp-firebase-adminsdk-*.json

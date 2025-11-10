@@ -2,6 +2,9 @@
 import React, { createContext, useState, useEffect, useMemo, useCallback, ReactNode, useRef } from 'react';
 import { type Todo, type UserProfile, type Note, type Subtask, type Toast, type UnlockedAchievement, type Achievement, RecurrenceType, Page, TagColorMap, Priority } from '@/types';
 import * as db from '@/services/db';
+import { useAuth } from '@/hooks/useAuth';
+import * as cloud from '@/services/cloud';
+import { isSupabaseConfigured } from '@/services/supabaseClient';
 import { achievementsList, checkAchievementConditions, type AchievementStats } from '@/constants/achievements';
 import { parseTextForDueDate, parseTextForTags } from '@/utils/textParser';
 
@@ -233,7 +236,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const [notes, setNotes] = useState<Note[]>([]);
     const [userProfile, setUserProfile] = useState<UserProfile>(defaultUserProfile);
     const [unlockedAchievements, setUnlockedAchievements] = useState<UnlockedAchievement[]>([]);
-    const [page, setPage] = useState<Page>('home');
+    const [page, rawSetPage] = useState<Page>('home');
     const [filter, setFilter] = useState('all');
     const [sortOrder, setSortOrder] = useState<SortOrder>('newest');
     const [searchQuery, setSearchQuery] = useState('');
@@ -256,6 +259,61 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
 
     const timerRef = useRef<number | null>(null);
+
+    const { user, isAuthenticated } = useAuth();
+
+    // Simple URL <-> page sync so routes like /login work without react-router
+    const pageToPath = useCallback((p: Page): string => {
+        switch (p) {
+            case 'home': return '/app';
+            case 'landing': return '/';
+            case 'login': return '/login';
+            case 'signup': return '/signup';
+            case 'forgot': return '/forgot';
+            case 'profile': return '/profile';
+            case 'notes': return '/notes';
+            case 'achievements': return '/achievements';
+            case 'settings': return '/settings';
+            case 'calendar': return '/calendar';
+            default: return '/';
+        }
+    }, []);
+
+    const pathToPage = useCallback((path: string): Page => {
+        switch (path) {
+            case '/': return 'landing';
+            case '/app': return 'home';
+            case '/login': return 'login';
+            case '/signup': return 'signup';
+            case '/forgot': return 'forgot';
+            case '/profile': return 'profile';
+            case '/notes': return 'notes';
+            case '/achievements': return 'achievements';
+            case '/settings': return 'settings';
+            case '/calendar': return 'calendar';
+            default: return 'home';
+        }
+    }, []);
+
+    const setPage = useCallback((p: Page) => {
+        rawSetPage(p);
+        const path = pageToPath(p);
+        if (window.location.pathname !== path) {
+            window.history.pushState(null, '', path);
+        }
+    }, [pageToPath]);
+
+    useEffect(() => {
+        // Initialize page from current path
+        const initial = pathToPage(window.location.pathname);
+        rawSetPage(initial);
+        // Listen for back/forward
+        const onPopState = () => {
+            rawSetPage(pathToPage(window.location.pathname));
+        };
+        window.addEventListener('popstate', onPopState);
+        return () => window.removeEventListener('popstate', onPopState);
+    }, [pathToPage]);
 
     // Initial Data Loading
     useEffect(() => {
@@ -293,6 +351,52 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         loadData();
     }, []);
 
+    // Cloud Sync (Supabase only): on auth, pull remote todos (or push local if remote empty)
+    useEffect(() => {
+        const run = async () => {
+            if (!isAuthenticated || !user?.id) return;
+            if (!isSupabaseConfigured()) return;
+            try {
+                const remote = await cloud.fetchTodos(user.id);
+                if (remote.length === 0 && todos.length > 0) {
+                    await cloud.upsertTodos(user.id, todos);
+                } else if (remote.length > 0) {
+                    setTodos(remote);
+                    await db.clearTodos();
+                    for (const t of remote) await db.putTodo(t);
+                }
+            } catch (err) {
+                console.error('Cloud sync failed:', err);
+                addToast('Cloud sync failed. Working locally.', 'error');
+            }
+        };
+        void run();
+    }, [isAuthenticated, user?.id]);
+
+    // Cloud Sync (Supabase only): on auth, pull remote profile (or push local if missing)
+    useEffect(() => {
+        const run = async () => {
+            if (!isAuthenticated || !user?.id) return;
+            if (!isSupabaseConfigured()) return;
+            try {
+                const remoteProfile = await cloud.fetchProfile(user.id);
+                if (remoteProfile) {
+                    setUserProfile(remoteProfile);
+                    await db.saveUserProfile(remoteProfile);
+                } else {
+                    // seed with local profile if none exists
+                    await cloud.upsertProfile(user.id, userProfile);
+                }
+            } catch (err) {
+                console.error('Profile sync failed:', err);
+                addToast('Profile sync failed. Working locally.', 'error');
+            }
+        };
+        void run();
+        // Only depend on auth state and user id; avoid re-pushing on profile edits here
+        // Profile saves are handled in handleSaveProfile
+    }, [isAuthenticated, user?.id]);
+
     // Derived State: pageTitle
     const pageTitle = useMemo(() => {
         switch(page) {
@@ -302,6 +406,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             case 'achievements': return 'Achievements';
             case 'settings': return 'Settings';
             case 'calendar': return 'Calendar';
+            case 'landing': return 'Welcome';
+            case 'login': return 'Sign in';
+            case 'signup': return 'Create account';
+            case 'forgot': return 'Reset password';
             default: return 'X To-Do';
         }
     }, [page]);
@@ -362,6 +470,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         const newTodos = [...todos, newTodo];
         setTodos(newTodos);
         await db.putTodo(newTodo);
+        if (isAuthenticated && user?.id && isSupabaseConfigured()) {
+            try { await cloud.upsertTodo(user.id, newTodo); } catch {}
+        }
         addToast('Task added!', 'success');
         checkForAchievements({ todos: newTodos, notes });
         return newTodo.id;
@@ -411,6 +522,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         
         setTodos(newTodos);
         await db.putTodo(updatedTodo);
+        if (isAuthenticated && user?.id && isSupabaseConfigured()) {
+            try { await cloud.upsertTodo(user.id, updatedTodo); } catch {}
+        }
         checkForAchievements({ todos: newTodos, notes });
     }, [todos, notes, checkForAchievements]);
 
@@ -422,6 +536,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 const newTodos = todos.filter(t => t.id !== id);
                 setTodos(newTodos);
                 await db.deleteTodo(id);
+                if (isAuthenticated && user?.id && isSupabaseConfigured()) {
+                    try { await cloud.deleteTodoRemote(user.id, id); } catch {}
+                }
                 addToast('Task deleted.', 'info');
             }
         );
@@ -431,12 +548,18 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         const newTodos = todos.map(t => t.id === id ? { ...t, text: newText } : t);
         setTodos(newTodos);
         await db.putTodo(newTodos.find(t => t.id === id)!);
+        if (isAuthenticated && user?.id && isSupabaseConfigured()) {
+            try { await cloud.upsertTodo(user.id, newTodos.find(t => t.id === id)!); } catch {}
+        }
     }, [todos]);
     
     const handleToggleImportant = useCallback(async (id: string) => {
         const newTodos = todos.map(t => t.id === id ? { ...t, isImportant: !t.isImportant } : t);
         setTodos(newTodos);
         await db.putTodo(newTodos.find(t => t.id === id)!);
+        if (isAuthenticated && user?.id) {
+            try { await cloud.upsertTodo(user.id, newTodos.find(t => t.id === id)!); } catch {}
+        }
         checkForAchievements({ todos: newTodos, notes });
     }, [todos, notes, checkForAchievements]);
 
@@ -453,6 +576,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setTodos(newTodos);
         const updated = newTodos.find(t => t.id === id)!;
         await db.putTodo(updated);
+        if (isAuthenticated && user?.id) {
+            try { await cloud.upsertTodo(user.id, updated); } catch {}
+        }
         addToast('Task updated.', 'success');
         checkForAchievements({ todos: newTodos, notes });
     }, [todos, notes, addToast, checkForAchievements]);
@@ -464,6 +590,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             todo.subtasks = todo.subtasks.map(st => st.id === subtaskId ? { ...st, completed: !st.completed } : st);
             setTodos(newTodos);
             await db.putTodo(todo);
+            if (isAuthenticated && user?.id && isSupabaseConfigured()) {
+                try { await cloud.upsertTodo(user.id, todo); } catch {}
+            }
         }
     }, [todos]);
     
@@ -474,6 +603,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             todo.subtasks = todo.subtasks.map(st => st.id === subtaskId ? { ...st, text: newText } : st);
             setTodos(newTodos);
             await db.putTodo(todo);
+            if (isAuthenticated && user?.id) {
+                try { await cloud.upsertTodo(user.id, todo); } catch {}
+            }
         }
     }, [todos]);
 
@@ -487,6 +619,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 setTodos(newTodos);
                 for (const todo of completedTodos) {
                     await db.deleteTodo(todo.id);
+                    if (isAuthenticated && user?.id) {
+                        try { await cloud.deleteTodoRemote(user.id, todo.id); } catch {}
+                    }
                 }
                 addToast('Completed tasks cleared.', 'info');
             }
@@ -672,9 +807,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         const oldUserProfile = { ...userProfile };
         setUserProfile(newProfile);
         await db.saveUserProfile(newProfile);
+        // Push to Supabase when authenticated and configured
+        try {
+            if (isAuthenticated && user?.id && isSupabaseConfigured()) {
+                await cloud.upsertProfile(user.id, newProfile);
+            }
+        } catch {}
         addToast('Profile updated!', 'success');
         checkForAchievements({ todos, notes, userProfile: newProfile, oldUserProfile });
-    }, [userProfile, todos, notes, addToast, checkForAchievements]);
+    }, [userProfile, todos, notes, addToast, checkForAchievements, isAuthenticated, user?.id]);
 
     // Modal Handlers
     const openAddTaskModal = useCallback(() => setIsAddTaskModalOpen(true), []);

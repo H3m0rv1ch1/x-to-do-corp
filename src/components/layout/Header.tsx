@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { FaXTwitter } from 'react-icons/fa6';
 import { HiDotsHorizontal, HiSearch, HiArrowLeft, HiMinus, HiX } from 'react-icons/hi';
 import { useAppContext } from '@/hooks/useAppContext';
+import { useAuth } from '@/hooks/useAuth';
 import useClickOutside from '@/hooks/useClickOutside';
 import HeaderMenu from './HeaderMenu';
 import { Tooltip, Avatar } from '@/components/ui';
@@ -10,6 +11,7 @@ import NotificationPrompt from '@/components/ui/NotificationPrompt';
 
 const Header: React.FC = () => {
   const { page, pageTitle, searchQuery, setSearchQuery, userProfile, setPage } = useAppContext();
+  const { logout } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isSearchActive, setIsSearchActive] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
@@ -180,6 +182,14 @@ const Header: React.FC = () => {
                         className="w-full text-left px-4 py-2 text-base text-[rgba(var(--foreground-primary-rgb))] hover:bg-[rgba(var(--foreground-primary-rgb),0.1)]"
                       >
                         Settings
+                      </button>
+                    </li>
+                    <li>
+                      <button
+                        onClick={() => { logout(); setPage('login'); setIsProfileMenuOpen(false); }}
+                        className="w-full text-left px-4 py-2 text-base text-[rgba(var(--danger-rgb))] hover:bg-[rgba(var(--danger-rgb),0.1)]"
+                      >
+                        Sign out
                       </button>
                     </li>
                   </ul>

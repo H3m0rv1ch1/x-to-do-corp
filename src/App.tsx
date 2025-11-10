@@ -8,6 +8,12 @@ import { CalendarPage } from '@/components/calendar';
 import { AddTaskModal, ConfirmationModal, ImageLightbox, FocusModeModal, ShortcutsModal, DayTasksModal } from '@/components/modals';
 import { ToastContainer } from '@/components/ui';
 import { AppProvider } from '@/contexts/AppContext';
+import { AuthProvider } from '@/contexts/AuthContext';
+import { useAuth } from '@/hooks/useAuth';
+import LoginPage from '@/components/auth/LoginPage';
+import SignupPage from '@/components/auth/SignupPage';
+import ForgotPasswordPage from '@/components/auth/ForgotPasswordPage';
+import LandingPage from '@/components/auth/LandingPage';
 import { useAppContext } from '@/hooks/useAppContext';
 
 
@@ -33,6 +39,16 @@ const AppContent: React.FC = () => {
     openShortcutsModal,
     closeShortcutsModal,
   } = useAppContext();
+  const { isAuthenticated } = useAuth();
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      // Gate the app behind the Login page for unauthenticated users
+      if (page !== 'login' && page !== 'signup' && page !== 'forgot' && page !== 'landing') {
+        setPage('landing');
+      }
+    }
+  }, [isAuthenticated, setPage, page]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -118,6 +134,14 @@ const AppContent: React.FC = () => {
         return <SettingsPage />;
       case 'calendar':
         return <CalendarPage />;
+      case 'landing':
+        return <LandingPage />;
+      case 'login':
+        return <LoginPage />;
+      case 'signup':
+        return <SignupPage />;
+      case 'forgot':
+        return <ForgotPasswordPage />;
       default:
         return null;
     }
@@ -127,6 +151,16 @@ const AppContent: React.FC = () => {
     confirmationState.onConfirm();
     hideConfirmation();
   };
+
+  // Render minimal layout for auth pages to avoid sidebars/nav
+  if (!isAuthenticated && (page === 'landing' || page === 'login' || page === 'signup' || page === 'forgot')) {
+    return (
+      <div className="bg-[rgba(var(--background-primary-rgb))] min-h-screen text-[rgba(var(--foreground-primary-rgb))] font-sans">
+        {renderPage()}
+        <ToastContainer toasts={toasts} />
+      </div>
+    );
+  }
 
   return (
     <div className="bg-[rgba(var(--background-primary-rgb))] min-h-screen text-[rgba(var(--foreground-primary-rgb))] font-sans">
@@ -167,9 +201,11 @@ const AppContent: React.FC = () => {
 
 const App: React.FC = () => {
   return (
-    <AppProvider>
-      <AppContent />
-    </AppProvider>
+    <AuthProvider>
+      <AppProvider>
+        <AppContent />
+      </AppProvider>
+    </AuthProvider>
   );
 };
 
