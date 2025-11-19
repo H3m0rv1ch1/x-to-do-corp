@@ -13,6 +13,7 @@ const LandingPage: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [remember, setRemember] = useState(true);
+  const [showPassword, setShowPassword] = useState(false);
 
   // Signup form state
   const [name, setName] = useState('');
@@ -114,34 +115,65 @@ const LandingPage: React.FC = () => {
                 </div>
                 <div>
                   <label className="block text-sm mb-1 text-[rgba(var(--foreground-secondary-rgb))]">Password</label>
-                  <input
-                    type="password"
-                    value={password}
-                    onChange={e => setPassword(e.target.value)}
-                    required
-                    className="w-full rounded-xl border border-[rgba(var(--border-primary-rgb))] bg-[rgba(var(--background-primary-rgb))] px-3 py-2 text-[rgba(var(--foreground-primary-rgb))] focus:outline-none focus:ring-1 focus:ring-[rgba(var(--accent-rgb))]"
-                  />
+                  <div className="relative">
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      value={password}
+                      onChange={e => setPassword(e.target.value)}
+                      required
+                      placeholder="Enter your password"
+                      className="w-full rounded-xl border border-[rgba(var(--border-primary-rgb))] bg-[rgba(var(--background-primary-rgb))] px-3 py-2 pr-10 text-[rgba(var(--foreground-primary-rgb))] focus:outline-none focus:ring-1 focus:ring-[rgba(var(--accent-rgb))]"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-[rgba(var(--foreground-secondary-rgb))] hover:text-[rgba(var(--foreground-primary-rgb))] transition-colors"
+                    >
+                      {showPassword ? (
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"></path>
+                        </svg>
+                      ) : (
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                        </svg>
+                      )}
+                    </button>
+                  </div>
                 </div>
-            <div className="flex items-center gap-3">
-              <button
-                type="submit"
-                disabled={loading}
-                className="flex-1 py-2.5 rounded-full bg-[rgba(var(--accent-rgb))] text-[rgba(var(--foreground-on-accent-rgb))] font-semibold hover:opacity-90 disabled:opacity-60"
-              >
-                {loading ? 'Signing in…' : 'Sign in'}
-              </button>
-              <label className="flex items-center gap-2 text-sm text-[rgba(var(--foreground-secondary-rgb))]">
-                <input type="checkbox" checked={remember} onChange={e => setRemember(e.target.checked)} />
-                Remember me
-              </label>
-              <button
-                type="button"
-                className="px-4 py-2 rounded-full border border-[rgba(var(--border-primary-rgb))]"
-                onClick={() => setMode('none')}
-              >
-                Cancel
-              </button>
-            </div>
+                <label className="flex items-center gap-2.5 text-sm text-[rgba(var(--foreground-primary-rgb))] cursor-pointer group">
+                  <div className="relative">
+                    <input 
+                      type="checkbox" 
+                      checked={remember} 
+                      onChange={e => setRemember(e.target.checked)} 
+                      className="sr-only peer" 
+                    />
+                    <div className="w-5 h-5 border border-[rgba(var(--border-primary-rgb))] rounded-lg bg-[rgba(var(--background-primary-rgb))] peer-checked:bg-[rgba(var(--accent-rgb))] peer-checked:border-[rgba(var(--accent-rgb))] transition-all duration-200 flex items-center justify-center group-hover:border-[rgba(var(--border-secondary-rgb))]">
+                      <svg className={`w-3.5 h-3.5 text-white ${remember ? 'scale-100 opacity-100' : 'scale-0 opacity-0'} transition-all duration-200`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"></path>
+                      </svg>
+                    </div>
+                  </div>
+                  <span className="select-none">Remember me</span>
+                </label>
+                <div className="flex items-center gap-3">
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="flex-1 py-2.5 rounded-full bg-[rgba(var(--accent-rgb))] text-[rgba(var(--foreground-on-accent-rgb))] font-semibold hover:opacity-90 disabled:opacity-60"
+                  >
+                    {loading ? 'Signing in…' : 'Sign in'}
+                  </button>
+                  <button
+                    type="button"
+                    className="px-4 py-2 rounded-full border border-[rgba(var(--border-primary-rgb))]"
+                    onClick={() => setMode('none')}
+                  >
+                    Cancel
+                  </button>
+                </div>
               </form>
             </div>
           )}
@@ -217,25 +249,22 @@ const LandingPage: React.FC = () => {
       {/* Footer links row */}
       <div className="border-t border-[rgba(var(--border-primary-rgb))]">
         <div className="mx-auto max-w-7xl px-6 md:px-12 py-4">
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-[12px] text-[rgba(var(--foreground-secondary-rgb))]">
-            <a className="hover:underline" href="#">About</a>
-            <a className="hover:underline" href="#">Download the X app</a>
-            <a className="hover:underline" href="#">Grok</a>
-            <a className="hover:underline" href="#">Help Center</a>
-            <a className="hover:underline" href="#">Terms of Service</a>
-            <a className="hover:underline" href="#">Privacy Policy</a>
-            <a className="hover:underline" href="#">Cookie Policy</a>
-            <a className="hover:underline" href="#">Accessibility</a>
-            <a className="hover:underline" href="#">Ads info</a>
-            <a className="hover:underline" href="#">Blog</a>
-            <a className="hover:underline" href="#">Careers</a>
-            <a className="hover:underline" href="#">Brand Resources</a>
-            <a className="hover:underline" href="#">Advertising</a>
-            <a className="hover:underline" href="#">X for Business</a>
-            <a className="hover:underline" href="#">Developers</a>
-            <a className="hover:underline" href="#">News</a>
-            <a className="hover:underline" href="#">Settings</a>
-            <span className="ml-auto">© 2025 X Corp.</span>
+          <div className="flex items-center gap-x-4 text-[12px] text-[rgba(var(--foreground-secondary-rgb))]">
+            <a className="hover:underline whitespace-nowrap" href="#">About</a>
+            <a className="hover:underline whitespace-nowrap" href="#">Download the X app</a>
+            <a className="hover:underline whitespace-nowrap" href="#">Help Center</a>
+            <a className="hover:underline whitespace-nowrap" href="#">Terms of Service</a>
+            <a className="hover:underline whitespace-nowrap" href="#">Privacy Policy</a>
+            <a className="hover:underline whitespace-nowrap" href="#">Cookie Policy</a>
+            <a className="hover:underline whitespace-nowrap" href="#">Accessibility</a>
+            <a className="hover:underline whitespace-nowrap" href="#">Ads info</a>
+            <a className="hover:underline whitespace-nowrap" href="#">Blog</a>
+            <a className="hover:underline whitespace-nowrap" href="#">Careers</a>
+            <a className="hover:underline whitespace-nowrap" href="#">Brand Resources</a>
+            <a className="hover:underline whitespace-nowrap" href="#">Advertising</a>
+            <a className="hover:underline whitespace-nowrap" href="#">Developers</a>
+            <a className="hover:underline whitespace-nowrap" href="#">Settings</a>
+            <span className="whitespace-nowrap">© 2025 X To-Do Corp.</span>
           </div>
         </div>
       </div>
