@@ -10,7 +10,7 @@ export type RecurrenceType = 'daily' | 'weekly' | 'monthly' | 'yearly';
 export type Priority = 'low' | 'medium' | 'high' | 'none';
 
 export interface Todo {
-  id:string;
+  id: string;
   text: string;
   completed: boolean;
   isImportant: boolean;

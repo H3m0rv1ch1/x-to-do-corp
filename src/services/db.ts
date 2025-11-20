@@ -3,13 +3,15 @@ import { type Todo, type Note, type UserProfile, type UnlockedAchievement } from
 
 const DB_NAME = 'X-ToDo-DB';
 const LEGACY_DB_NAME = 'x-todo-corp-db';
-const DB_VERSION = 3; // Incremented version for schema change
+const DB_VERSION = 4; // Incremented version for offline-first schema
 const TODO_STORE = 'todos';
 const NOTE_STORE = 'notes';
 const PROFILE_STORE = 'userProfile';
 const ACHIEVEMENTS_STORE = 'unlockedAchievements';
 const KV_STORE = 'keyValue';
-const ALL_STORES = [TODO_STORE, NOTE_STORE, PROFILE_STORE, ACHIEVEMENTS_STORE, KV_STORE];
+const USER_STORE = 'users';
+const SYNC_QUEUE_STORE = 'sync_queue';
+const ALL_STORES = [TODO_STORE, NOTE_STORE, PROFILE_STORE, ACHIEVEMENTS_STORE, KV_STORE, USER_STORE, SYNC_QUEUE_STORE];
 
 let db: IDBDatabase;
 
@@ -42,6 +44,12 @@ const openDBWithVersion = (name: string, version?: number): Promise<IDBDatabase>
       }
       if (!dbInstance.objectStoreNames.contains(KV_STORE)) {
         dbInstance.createObjectStore(KV_STORE, { keyPath: 'id' });
+      }
+      if (!dbInstance.objectStoreNames.contains(USER_STORE)) {
+        dbInstance.createObjectStore(USER_STORE, { keyPath: 'email' }); // Email as key for users
+      }
+      if (!dbInstance.objectStoreNames.contains(SYNC_QUEUE_STORE)) {
+        dbInstance.createObjectStore(SYNC_QUEUE_STORE, { keyPath: 'id', autoIncrement: true });
       }
     };
   });
@@ -177,6 +185,12 @@ const initDB = (): Promise<IDBDatabase> => {
       if (!dbInstance.objectStoreNames.contains(KV_STORE)) {
         dbInstance.createObjectStore(KV_STORE, { keyPath: 'id' });
       }
+      if (!dbInstance.objectStoreNames.contains(USER_STORE)) {
+        dbInstance.createObjectStore(USER_STORE, { keyPath: 'email' });
+      }
+      if (!dbInstance.objectStoreNames.contains(SYNC_QUEUE_STORE)) {
+        dbInstance.createObjectStore(SYNC_QUEUE_STORE, { keyPath: 'id', autoIncrement: true });
+      }
     };
   });
 };
@@ -196,14 +210,14 @@ const getAll = <T>(storeName: string): Promise<T[]> => {
   });
 };
 
-const get = <T>(storeName: string, id: string): Promise<T | undefined> => {
-    return new Promise(async (resolve, reject) => {
-        await initDB();
-        const store = getStore(storeName, 'readonly');
-        const request = store.get(id);
-        request.onsuccess = () => resolve(request.result as T);
-        request.onerror = () => reject(request.error);
-    });
+const get = <T>(storeName: string, id: IDBValidKey): Promise<T | undefined> => {
+  return new Promise(async (resolve, reject) => {
+    await initDB();
+    const store = getStore(storeName, 'readonly');
+    const request = store.get(id);
+    request.onsuccess = () => resolve(request.result as T);
+    request.onerror = () => reject(request.error);
+  });
 };
 
 const put = <T>(storeName: string, item: T): Promise<void> => {
@@ -216,7 +230,7 @@ const put = <T>(storeName: string, item: T): Promise<void> => {
   });
 };
 
-const deleteItem = (storeName: string, id: string): Promise<void> => {
+const deleteItem = (storeName: string, id: IDBValidKey): Promise<void> => {
   return new Promise(async (resolve, reject) => {
     await initDB();
     const store = getStore(storeName, 'readwrite');
@@ -258,23 +272,32 @@ export const putUnlockedAchievement = (achievement: UnlockedAchievement) => put<
 const PROFILE_KEY = 'main_profile';
 
 export const getUserProfile = async (): Promise<UserProfile | null> => {
-    const profile = await get<UserProfile & {id: string}>(PROFILE_STORE, PROFILE_KEY);
-    if(profile) {
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const { id, ...rest } = profile;
-        return rest as UserProfile;
-    }
-    return null;
+  const profile = await get<UserProfile & { id: string }>(PROFILE_STORE, PROFILE_KEY);
+  if (profile) {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { id, ...rest } = profile;
+    return rest as UserProfile;
+  }
+  return null;
 }
 
 export const saveUserProfile = (profile: UserProfile) => {
-    return put<UserProfile & {id: string}>(PROFILE_STORE, { ...profile, id: PROFILE_KEY });
+  return put<UserProfile & { id: string }>(PROFILE_STORE, { ...profile, id: PROFILE_KEY });
 };
 
 // Key-Value Store functions
-export const getValue = (id: string) => get<{id: string, value: any}>(KV_STORE, id);
+export const getValue = (id: string) => get<{ id: string, value: any }>(KV_STORE, id);
 export const putValue = (id: string, value: any) => put(KV_STORE, { id, value });
 
+
+// User specific functions
+export const getUser = (email: string) => get<any>(USER_STORE, email);
+export const putUser = (user: any) => put<any>(USER_STORE, user);
+
+// Sync Queue functions
+export const addToSyncQueue = (item: any) => put<any>(SYNC_QUEUE_STORE, item);
+export const getSyncQueue = () => getAll<any>(SYNC_QUEUE_STORE);
+export const removeFromSyncQueue = (id: number) => deleteItem(SYNC_QUEUE_STORE, id);
 
 // General DB functions
 export const clearAllData = async (): Promise<void> => {

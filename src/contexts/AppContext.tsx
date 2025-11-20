@@ -2,8 +2,10 @@
 import React, { createContext, useState, useEffect, useMemo, useCallback, ReactNode, useRef } from 'react';
 import { type Todo, type UserProfile, type Note, type Subtask, type Toast, type UnlockedAchievement, type Achievement, RecurrenceType, Page, TagColorMap, Priority } from '@/types';
 import * as db from '@/services/db';
+import { addToSyncQueue } from '@/services/db';
 import { useAuth } from '@/hooks/useAuth';
 import * as cloud from '@/services/cloud';
+import { syncService } from '@/services/syncService';
 import { isSupabaseConfigured } from '@/services/supabaseClient';
 import { achievementsList, checkAchievementConditions, type AchievementStats } from '@/constants/achievements';
 import { parseTextForDueDate, parseTextForTags } from '@/utils/textParser';
@@ -478,13 +480,36 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         const newTodos = [...todos, newTodo];
         setTodos(newTodos);
         await db.putTodo(newTodo);
-        if (isAuthenticated && user?.id && isSupabaseConfigured()) {
-            try { await cloud.upsertTodo(user.id, newTodo); } catch { }
+
+        if (isAuthenticated && user?.id && !user.isOfflineOnly) {
+            try {
+                await addToSyncQueue({
+                    table: 'todos',
+                    action: 'INSERT',
+                    payload: {
+                        id: newTodo.id,
+                        text: newTodo.text,
+                        user_id: user.id,
+                        priority: newTodo.priority,
+                        is_important: newTodo.isImportant,
+                        completed: newTodo.completed,
+                        created_at: newTodo.createdAt,
+                        due_date: newTodo.dueDate,
+                        image_url: newTodo.imageUrl,
+                        tags: newTodo.tags
+                    }
+                });
+                if (navigator.onLine) {
+                    syncService.pushChanges();
+                }
+            } catch (e) {
+                console.error('Failed to queue sync item:', e);
+            }
         }
         addToast('Task added!', 'success');
         checkForAchievements({ todos: newTodos, notes });
         return newTodo.id;
-    }, [todos, notes, addToast, checkForAchievements]);
+    }, [todos, notes, addToast, checkForAchievements, isAuthenticated, user]);
 
     const handleToggleTodo = useCallback(async (id: string) => {
         const newTodos = [...todos];
@@ -526,15 +551,42 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             };
             newTodos.push(newRecurringTodo);
             await db.putTodo(newRecurringTodo);
+            if (isAuthenticated && user?.id && !user.isOfflineOnly) {
+                try {
+                    await addToSyncQueue({
+                        table: 'todos',
+                        action: 'INSERT',
+                        payload: {
+                            id: newRecurringTodo.id,
+                            text: newRecurringTodo.text,
+                            user_id: user.id,
+                            priority: newRecurringTodo.priority,
+                            is_important: newRecurringTodo.isImportant,
+                            completed: newRecurringTodo.completed,
+                            created_at: newRecurringTodo.createdAt,
+                            due_date: newRecurringTodo.dueDate,
+                            image_url: newRecurringTodo.imageUrl,
+                            tags: newRecurringTodo.tags
+                        }
+                    });
+                } catch { }
+            }
         }
 
         setTodos(newTodos);
         await db.putTodo(updatedTodo);
-        if (isAuthenticated && user?.id && isSupabaseConfigured()) {
-            try { await cloud.upsertTodo(user.id, updatedTodo); } catch { }
+        if (isAuthenticated && user?.id && !user.isOfflineOnly) {
+            try {
+                await addToSyncQueue({
+                    table: 'todos',
+                    action: 'UPDATE',
+                    payload: { id: updatedTodo.id, completed: updatedTodo.completed, completed_at: updatedTodo.completedAt }
+                });
+                if (navigator.onLine) syncService.pushChanges();
+            } catch { }
         }
         checkForAchievements({ todos: newTodos, notes });
-    }, [todos, notes, checkForAchievements]);
+    }, [todos, notes, checkForAchievements, isAuthenticated, user]);
 
     const handleDeleteTodo = useCallback((id: string) => {
         showConfirmation(
@@ -544,52 +596,101 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 const newTodos = todos.filter(t => t.id !== id);
                 setTodos(newTodos);
                 await db.deleteTodo(id);
-                if (isAuthenticated && user?.id && isSupabaseConfigured()) {
-                    try { await cloud.deleteTodoRemote(user.id, id); } catch { }
+                if (isAuthenticated && user?.id && !user.isOfflineOnly) {
+                    try {
+                        await addToSyncQueue({
+                            table: 'todos',
+                            action: 'DELETE',
+                            payload: { id }
+                        });
+                        if (navigator.onLine) syncService.pushChanges();
+                    } catch { }
                 }
                 addToast('Task deleted.', 'info');
             }
         );
-    }, [todos, addToast]);
+    }, [todos, addToast, isAuthenticated, user]);
 
     const handleEditTodo = useCallback(async (id: string, newText: string) => {
         const newTodos = todos.map(t => t.id === id ? { ...t, text: newText } : t);
         setTodos(newTodos);
         await db.putTodo(newTodos.find(t => t.id === id)!);
-        if (isAuthenticated && user?.id && isSupabaseConfigured()) {
-            try { await cloud.upsertTodo(user.id, newTodos.find(t => t.id === id)!); } catch { }
+        if (isAuthenticated && user?.id && !user.isOfflineOnly) {
+            try {
+                await addToSyncQueue({
+                    table: 'todos',
+                    action: 'UPDATE',
+                    payload: { id, text: newText }
+                });
+                if (navigator.onLine) syncService.pushChanges();
+            } catch { }
         }
-    }, [todos]);
+    }, [todos, isAuthenticated, user]);
 
     const handleToggleImportant = useCallback(async (id: string) => {
         const newTodos = todos.map(t => t.id === id ? { ...t, isImportant: !t.isImportant } : t);
         setTodos(newTodos);
-        await db.putTodo(newTodos.find(t => t.id === id)!);
-        if (isAuthenticated && user?.id) {
-            try { await cloud.upsertTodo(user.id, newTodos.find(t => t.id === id)!); } catch { }
+        const updated = newTodos.find(t => t.id === id)!;
+        await db.putTodo(updated);
+        if (isAuthenticated && user?.id && !user.isOfflineOnly) {
+            try {
+                await addToSyncQueue({
+                    table: 'todos',
+                    action: 'UPDATE',
+                    payload: { id, is_important: updated.isImportant }
+                });
+                if (navigator.onLine) syncService.pushChanges();
+            } catch { }
         }
         checkForAchievements({ todos: newTodos, notes });
-    }, [todos, notes, checkForAchievements]);
+    }, [todos, notes, checkForAchievements, isAuthenticated, user]);
 
     const handleSetPriority = useCallback(async (id: string, priority: Priority) => {
         const newTodos = todos.map(t => t.id === id ? { ...t, priority } : t);
         setTodos(newTodos);
         await db.putTodo(newTodos.find(t => t.id === id)!);
+        if (isAuthenticated && user?.id && !user.isOfflineOnly) {
+            try {
+                await addToSyncQueue({
+                    table: 'todos',
+                    action: 'UPDATE',
+                    payload: { id, priority }
+                });
+                if (navigator.onLine) syncService.pushChanges();
+            } catch { }
+        }
         addToast(`Priority set to ${priority}`, 'info');
         checkForAchievements({ todos: newTodos, notes });
-    }, [todos, notes, addToast, checkForAchievements]);
+    }, [todos, notes, addToast, checkForAchievements, isAuthenticated, user]);
 
     const handleUpdateTodo = useCallback(async (id: string, updates: Partial<Todo>) => {
         const newTodos = todos.map(t => t.id === id ? { ...t, ...updates } : t);
         setTodos(newTodos);
         const updated = newTodos.find(t => t.id === id)!;
         await db.putTodo(updated);
-        if (isAuthenticated && user?.id) {
-            try { await cloud.upsertTodo(user.id, updated); } catch { }
+
+        if (isAuthenticated && user?.id && !user.isOfflineOnly) {
+            try {
+                const payload: any = { id };
+                if (updates.text !== undefined) payload.text = updates.text;
+                if (updates.isImportant !== undefined) payload.is_important = updates.isImportant;
+                if (updates.completed !== undefined) payload.completed = updates.completed;
+                if (updates.priority !== undefined) payload.priority = updates.priority;
+                if (updates.dueDate !== undefined) payload.due_date = updates.dueDate;
+                if (updates.imageUrl !== undefined) payload.image_url = updates.imageUrl;
+                if (updates.tags !== undefined) payload.tags = updates.tags;
+
+                await addToSyncQueue({
+                    table: 'todos',
+                    action: 'UPDATE',
+                    payload
+                });
+                if (navigator.onLine) syncService.pushChanges();
+            } catch { }
         }
         addToast('Task updated.', 'success');
         checkForAchievements({ todos: newTodos, notes });
-    }, [todos, notes, addToast, checkForAchievements]);
+    }, [todos, notes, addToast, checkForAchievements, isAuthenticated, user]);
 
     const handleToggleSubtask = useCallback(async (todoId: string, subtaskId: string) => {
         const newTodos = [...todos];
@@ -598,11 +699,18 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             todo.subtasks = todo.subtasks.map(st => st.id === subtaskId ? { ...st, completed: !st.completed } : st);
             setTodos(newTodos);
             await db.putTodo(todo);
-            if (isAuthenticated && user?.id && isSupabaseConfigured()) {
-                try { await cloud.upsertTodo(user.id, todo); } catch { }
+            if (isAuthenticated && user?.id && !user.isOfflineOnly) {
+                try {
+                    await addToSyncQueue({
+                        table: 'todos',
+                        action: 'UPDATE',
+                        payload: { id: todoId, subtasks: todo.subtasks }
+                    });
+                    if (navigator.onLine) syncService.pushChanges();
+                } catch { }
             }
         }
-    }, [todos]);
+    }, [todos, isAuthenticated, user]);
 
     const handleEditSubtask = useCallback(async (todoId: string, subtaskId: string, newText: string) => {
         const newTodos = [...todos];
@@ -611,11 +719,18 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             todo.subtasks = todo.subtasks.map(st => st.id === subtaskId ? { ...st, text: newText } : st);
             setTodos(newTodos);
             await db.putTodo(todo);
-            if (isAuthenticated && user?.id) {
-                try { await cloud.upsertTodo(user.id, todo); } catch { }
+            if (isAuthenticated && user?.id && !user.isOfflineOnly) {
+                try {
+                    await addToSyncQueue({
+                        table: 'todos',
+                        action: 'UPDATE',
+                        payload: { id: todoId, subtasks: todo.subtasks }
+                    });
+                    if (navigator.onLine) syncService.pushChanges();
+                } catch { }
             }
         }
-    }, [todos]);
+    }, [todos, isAuthenticated, user]);
 
     const handleClearCompletedTodos = useCallback(() => {
         showConfirmation(
@@ -627,14 +742,23 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 setTodos(newTodos);
                 for (const todo of completedTodos) {
                     await db.deleteTodo(todo.id);
-                    if (isAuthenticated && user?.id) {
-                        try { await cloud.deleteTodoRemote(user.id, todo.id); } catch { }
+                    if (isAuthenticated && user?.id && !user.isOfflineOnly) {
+                        try {
+                            await addToSyncQueue({
+                                table: 'todos',
+                                action: 'DELETE',
+                                payload: { id: todo.id }
+                            });
+                        } catch { }
                     }
+                }
+                if (isAuthenticated && user?.id && !user.isOfflineOnly && navigator.onLine) {
+                    syncService.pushChanges();
                 }
                 addToast('Completed tasks cleared.', 'info');
             }
         );
-    }, [todos, addToast]);
+    }, [todos, addToast, isAuthenticated, user]);
 
     // Tag management
     const assignColorToTag = useCallback((tagName: string, currentColors: TagColorMap) => {
@@ -737,16 +861,53 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         const newNotes = [newNote, ...notes];
         setNotes(newNotes);
         await db.putNote(newNote);
+
+        if (isAuthenticated && user?.id && !user.isOfflineOnly) {
+            try {
+                await addToSyncQueue({
+                    table: 'notes',
+                    action: 'INSERT',
+                    payload: {
+                        id: newNote.id,
+                        title: newNote.title,
+                        content: newNote.content,
+                        user_id: user.id,
+                        created_at: newNote.createdAt,
+                        updated_at: newNote.updatedAt,
+                        is_pinned: newNote.isPinned
+                    }
+                });
+                if (navigator.onLine) syncService.pushChanges();
+            } catch { }
+        }
         addToast('Note created!', 'success');
         checkForAchievements({ todos, notes: newNotes });
         return newNote.id;
-    }, [notes, todos, addToast, checkForAchievements]);
+    }, [notes, todos, addToast, checkForAchievements, isAuthenticated, user]);
 
     const handleUpdateNote = useCallback(async (updatedNote: Note) => {
         const newNotes = notes.map(n => n.id === updatedNote.id ? { ...updatedNote, updatedAt: new Date().toISOString() } : n);
         setNotes(newNotes);
-        await db.putNote({ ...updatedNote, updatedAt: new Date().toISOString() });
-    }, [notes]);
+        const noteToSave = { ...updatedNote, updatedAt: new Date().toISOString() };
+        await db.putNote(noteToSave);
+
+        if (isAuthenticated && user?.id && !user.isOfflineOnly) {
+            try {
+                await addToSyncQueue({
+                    table: 'notes',
+                    action: 'UPDATE',
+                    payload: {
+                        id: noteToSave.id,
+                        title: noteToSave.title,
+                        content: noteToSave.content,
+                        updated_at: noteToSave.updatedAt,
+                        is_pinned: noteToSave.isPinned
+                    }
+                });
+                if (navigator.onLine) syncService.pushChanges();
+            } catch { }
+        }
+    }, [notes, isAuthenticated, user]);
 
     const handleDeleteNote = useCallback((id: string) => {
         showConfirmation(
@@ -756,10 +917,20 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 const newNotes = notes.filter(n => n.id !== id);
                 setNotes(newNotes);
                 await db.deleteNote(id);
+                if (isAuthenticated && user?.id && !user.isOfflineOnly) {
+                    try {
+                        await addToSyncQueue({
+                            table: 'notes',
+                            action: 'DELETE',
+                            payload: { id }
+                        });
+                        if (navigator.onLine) syncService.pushChanges();
+                    } catch { }
+                }
                 addToast('Note deleted.', 'info');
             }
         );
-    }, [notes, addToast]);
+    }, [notes, addToast, isAuthenticated, user]);
 
     const handleDeleteAllNotes = useCallback(() => {
         showConfirmation(
@@ -768,10 +939,23 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             async () => {
                 setNotes([]);
                 await db.clearNotes();
+                // Queue delete for all notes
+                if (isAuthenticated && user?.id && !user.isOfflineOnly) {
+                    try {
+                        for (const note of notes) {
+                            await addToSyncQueue({
+                                table: 'notes',
+                                action: 'DELETE',
+                                payload: { id: note.id }
+                            });
+                        }
+                        if (navigator.onLine) syncService.pushChanges();
+                    } catch { }
+                }
                 addToast('All notes have been deleted.', 'info');
             }
         );
-    }, [addToast]);
+    }, [addToast, isAuthenticated, user, notes]);
 
     const handlePinNote = useCallback(async (id: string) => {
         const newNotes = notes.map(n => n.id === id ? { ...n, isPinned: !n.isPinned } : n);
@@ -779,9 +963,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         const noteToUpdate = newNotes.find(n => n.id === id);
         if (noteToUpdate) {
             await db.putNote(noteToUpdate);
+            if (isAuthenticated && user?.id && !user.isOfflineOnly) {
+                try {
+                    await addToSyncQueue({
+                        table: 'notes',
+                        action: 'UPDATE',
+                        payload: { id: noteToUpdate.id, is_pinned: noteToUpdate.isPinned }
+                    });
+                    if (navigator.onLine) syncService.pushChanges();
+                } catch { }
+            }
             addToast(noteToUpdate.isPinned ? 'Note pinned' : 'Note unpinned', 'info');
         }
-    }, [notes, addToast]);
+    }, [notes, addToast, isAuthenticated, user]);
 
     const filteredNotes = useMemo(() => {
         let tempNotes = [...notes];
@@ -815,15 +1009,30 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         const oldUserProfile = { ...userProfile };
         setUserProfile(newProfile);
         await db.saveUserProfile(newProfile);
-        // Push to Supabase when authenticated and configured
-        try {
-            if (isAuthenticated && user?.id && isSupabaseConfigured()) {
-                await cloud.upsertProfile(user.id, newProfile);
-            }
-        } catch { }
+
+        if (isAuthenticated && user?.id && !user.isOfflineOnly) {
+            try {
+                await addToSyncQueue({
+                    table: 'profiles',
+                    action: 'UPDATE',
+                    payload: {
+                        id: user.id,
+                        name: newProfile.name,
+                        username: newProfile.username,
+                        bio: newProfile.bio,
+                        avatar_url: newProfile.avatarUrl,
+                        banner_url: newProfile.bannerUrl,
+                        verification_type: newProfile.verificationType,
+                        organization: newProfile.organization,
+                        organization_avatar_url: newProfile.organizationAvatarUrl
+                    }
+                });
+                if (navigator.onLine) syncService.pushChanges();
+            } catch { }
+        }
         addToast('Profile updated!', 'success');
         checkForAchievements({ todos, notes, userProfile: newProfile, oldUserProfile });
-    }, [userProfile, todos, notes, addToast, checkForAchievements, isAuthenticated, user?.id]);
+    }, [userProfile, todos, notes, addToast, checkForAchievements, isAuthenticated, user]);
 
     // Modal Handlers
     const openAddTaskModal = useCallback(() => setIsAddTaskModalOpen(true), []);

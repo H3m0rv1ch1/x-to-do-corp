@@ -5,6 +5,7 @@ export interface AuthUser {
   id: string;
   name: string;
   email: string;
+  isOfflineOnly?: boolean;
 }
 
 interface AuthContextType {
@@ -13,6 +14,8 @@ interface AuthContextType {
   isLoading: boolean;
   login: (email: string, password: string, remember?: boolean) => Promise<void>;
   signup: (name: string, email: string, password: string) => Promise<void>;
+  signupLocal: (name: string, email: string, password: string) => Promise<void>;
+  loginLocal: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   requestPasswordReset: (email: string) => Promise<void>;
 }
@@ -64,56 +67,188 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Auth wiring: Supabase first, else local fallback
   useEffect(() => {
-    if (isSupabaseConfigured()) {
-      const supabase = getSupabase();
-      // Initialize from current session
-      void supabase.auth.getSession().then(({ data }) => {
+    const initAuth = async () => {
+      // Check for local session first
+      const localSession = readSession();
+      if (localSession) {
+        setUser(localSession);
+        setIsLoading(false);
+        // If it's an online account (has ID that looks like UUID and not local), try to sync if online
+        if (isSupabaseConfigured() && navigator.onLine) {
+          // Background sync
+          import('../services/syncService').then(({ syncService }) => {
+            syncService.startAutoSync();
+          });
+        }
+        return;
+      }
+
+      if (isSupabaseConfigured()) {
+        const supabase = getSupabase();
+        const { data } = await supabase.auth.getSession();
         const u = data.session?.user;
         if (u) {
-          setUser({ id: u.id, name: (u.user_metadata?.name as string) || u.email || 'User', email: u.email || '' });
+          const user: AuthUser = {
+            id: u.id,
+            name: (u.user_metadata?.name as string) || u.email || 'User',
+            email: u.email || '',
+            isOfflineOnly: false
+          };
+          setUser(user);
+          writeSession(user); // Persist to local storage for offline access
+
+          // Start sync
+          import('../services/syncService').then(({ syncService }) => {
+            syncService.startAutoSync();
+          });
         }
         setIsLoading(false);
-      });
-      const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
-        const u = session?.user;
-        if (u) {
-          setUser({ id: u.id, name: (u.user_metadata?.name as string) || u.email || 'User', email: u.email || '' });
-        } else {
-          setUser(null);
-        }
-      });
-      return () => { sub?.subscription?.unsubscribe(); };
-    }
 
-    const existing = readSession();
-    if (existing) setUser(existing);
-    setIsLoading(false);
+        const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+          const u = session?.user;
+          if (u) {
+            const user: AuthUser = {
+              id: u.id,
+              name: (u.user_metadata?.name as string) || u.email || 'User',
+              email: u.email || '',
+              isOfflineOnly: false
+            };
+            setUser(user);
+            writeSession(user);
+          } else {
+            // Only clear if we were using an online account
+            // This might be tricky if we want to switch between local/online. 
+            // For now, if Supabase says sign out, we sign out.
+            // But wait, if we are offline, onAuthStateChange might not fire or might be weird.
+            // Let's rely on explicit logout for clearing local session.
+          }
+        });
+        return () => { sub?.subscription?.unsubscribe(); };
+      }
+      setIsLoading(false);
+    };
+    initAuth();
   }, []);
 
   const login = async (email: string, password: string, remember: boolean = true) => {
-    if (isSupabaseConfigured()) {
-      const supabase = getSupabase();
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) throw new Error(error.message);
-      const u = data.user;
-      if (u) setUser({ id: u.id, name: (u.user_metadata?.name as string) || u.email || 'User', email: u.email || '' });
-      // Supabase persists sessions by default; reflect checkbox in a flag only
-      try { localStorage.setItem('remember_me', remember ? '1' : '0'); } catch { }
-      return;
+    // Smart auto-detection: Try Supabase first if online, then fall back to local
+
+    // Attempt 1: Try Supabase (Online Account) if configured and online
+    if (isSupabaseConfigured() && navigator.onLine) {
+      try {
+        const supabase = getSupabase();
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+
+        if (!error && data.user) {
+          // Supabase login successful
+          const u = data.user;
+          const user: AuthUser = {
+            id: u.id,
+            name: (u.user_metadata?.name as string) || u.email || 'User',
+            email: u.email || '',
+            isOfflineOnly: false
+          };
+          setUser(user);
+          writeSession(user);
+          try { localStorage.setItem('remember_me', remember ? '1' : '0'); } catch { }
+
+          // Trigger sync
+          import('../services/syncService').then(({ syncService }) => {
+            syncService.pullChanges();
+            syncService.pushChanges();
+          });
+          return;
+        }
+        // If error, fall through to try local login
+      } catch (e) {
+        // Supabase failed, try local
+      }
     }
-    // Local fallback
+
+    // Attempt 2: Try local DB (Offline Account)
+    try {
+      const { getUser } = await import('../services/db');
+      const localUser = await getUser(email.toLowerCase());
+      if (localUser) {
+        const hash = await hashPassword(password);
+        if (hash === localUser.passwordHash) {
+          const user: AuthUser = {
+            id: localUser.id,
+            name: localUser.name,
+            email: localUser.email,
+            isOfflineOnly: true
+          };
+          setUser(user);
+          writeSession(user);
+          return;
+        } else {
+          throw new Error('Invalid credentials');
+        }
+      }
+    } catch (e) {
+      // If not a credentials error, continue to legacy check
+      if ((e as Error).message === 'Invalid credentials') {
+        throw e;
+      }
+    }
+
+    // Attempt 3: Fallback to localStorage 'auth_users' (Legacy Local)
     const users = readUsers();
     const u = users[email.toLowerCase()];
-    if (!u) throw new Error('Account not found');
-    const hash = await hashPassword(password);
-    if (hash !== u.passwordHash) throw new Error('Invalid credentials');
-    const sessionUser: AuthUser = { id: u.id, name: u.name, email: u.email };
-    setUser(sessionUser);
-    if (remember) writeSession(sessionUser); else writeSession(null);
+    if (u) {
+      const hash = await hashPassword(password);
+      if (hash !== u.passwordHash) throw new Error('Invalid credentials');
+      const sessionUser: AuthUser = { id: u.id, name: u.name, email: u.email, isOfflineOnly: true };
+      setUser(sessionUser);
+      writeSession(sessionUser);
+      return;
+    }
+
+    throw new Error('Invalid email or password');
+  };
+
+  const loginLocal = async (email: string, password: string) => {
+    // 1. Try to find in local DB 'users' store
+    try {
+      const { getUser } = await import('../services/db');
+      const localUser = await getUser(email.toLowerCase());
+      if (localUser) {
+        const hash = await hashPassword(password);
+        if (hash === localUser.passwordHash) {
+          const user: AuthUser = {
+            id: localUser.id,
+            name: localUser.name,
+            email: localUser.email,
+            isOfflineOnly: true
+          };
+          setUser(user);
+          writeSession(user);
+          return;
+        } else {
+          throw new Error('Invalid credentials');
+        }
+      }
+    } catch (e) {
+      if (e instanceof Error && e.message === 'Invalid credentials') throw e;
+    }
+
+    // 2. Fallback to localStorage 'auth_users'
+    const users = readUsers();
+    const u = users[email.toLowerCase()];
+    if (u) {
+      const hash = await hashPassword(password);
+      if (hash !== u.passwordHash) throw new Error('Invalid credentials');
+      const sessionUser: AuthUser = { id: u.id, name: u.name, email: u.email, isOfflineOnly: true };
+      setUser(sessionUser);
+      writeSession(sessionUser);
+      return;
+    }
+
+    throw new Error('Offline account not found.');
   };
 
   const signup = async (name: string, email: string, password: string) => {
-    if (isSupabaseConfigured()) {
+    if (isSupabaseConfigured() && navigator.onLine) {
       const supabase = getSupabase();
       const { data, error } = await supabase.auth.signUp({
         email,
@@ -128,44 +263,60 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       const u = data.user;
       if (u) {
-        // Set user immediately even if email not confirmed
-        // Supabase session will be active if auto-confirm is enabled
-        setUser({ id: u.id, name: name || u.email || 'User', email: u.email || '' });
+        const user: AuthUser = {
+          id: u.id,
+          name: name || u.email || 'User',
+          email: u.email || '',
+          isOfflineOnly: false
+        };
+        setUser(user);
 
-        // If email confirmation is required and not confirmed yet
         if (!u.confirmed_at && data.session === null) {
           throw new Error('Please check your email to confirm your account before logging in.');
         }
       }
       return;
     }
-    // Local fallback
-    const users = readUsers();
-    const key = email.toLowerCase();
-    if (users[key]) throw new Error('Email already registered');
+    throw new Error('Cannot create online account while offline.');
+  };
+
+  const signupLocal = async (name: string, email: string, password: string) => {
+    const { getUser, putUser } = await import('../services/db');
+    const existing = await getUser(email.toLowerCase());
+    if (existing) throw new Error('Email already registered locally');
+
     const passwordHash = await hashPassword(password);
-    const newUser: StoredUser = { id: crypto.randomUUID(), name, email: key, passwordHash };
-    users[key] = newUser;
-    writeUsers(users);
-    const sessionUser: AuthUser = { id: newUser.id, name, email: key };
-    setUser(sessionUser);
-    writeSession(sessionUser);
+    const newUser = {
+      id: crypto.randomUUID(),
+      name,
+      email: email.toLowerCase(),
+      passwordHash,
+      createdAt: new Date().toISOString()
+    };
+
+    await putUser(newUser);
+
+    const user: AuthUser = {
+      id: newUser.id,
+      name: newUser.name,
+      email: newUser.email,
+      isOfflineOnly: true
+    };
+    setUser(user);
+    writeSession(user);
   };
 
   const logout = async () => {
-    if (isSupabaseConfigured()) {
+    if (isSupabaseConfigured() && navigator.onLine) {
       const supabase = getSupabase();
-      const { error } = await supabase.auth.signOut();
-      if (error) throw new Error(error.message);
-      setUser(null);
-      return;
+      await supabase.auth.signOut();
     }
     setUser(null);
     writeSession(null);
   };
 
   const requestPasswordReset = async (email: string) => {
-    if (isSupabaseConfigured()) {
+    if (isSupabaseConfigured() && navigator.onLine) {
       const supabase = getSupabase();
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: window.location.origin,
@@ -173,18 +324,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (error) throw new Error(error.message);
       return;
     }
-    // Local-only demo: simulate sending a reset link
-    const users = readUsers();
-    const key = email.toLowerCase();
-    if (!users[key]) throw new Error('Email not found');
-    try {
-      const token = crypto.randomUUID();
-      localStorage.setItem(`reset_${key}`, token);
-    } catch { }
+    throw new Error('Password reset requires internet connection.');
   };
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated: !!user, isLoading, login, signup, logout, requestPasswordReset }}>
+    <AuthContext.Provider value={{ user, isAuthenticated: !!user, isLoading, login, signup, signupLocal, loginLocal, logout, requestPasswordReset }}>
       {children}
     </AuthContext.Provider>
   );

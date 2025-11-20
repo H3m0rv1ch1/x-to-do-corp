@@ -50,12 +50,12 @@ const AppContent: React.FC = () => {
   useEffect(() => {
     if (!isAuthenticated) {
       // Gate the app behind the Login page for unauthenticated users
-      if (page !== 'login' && page !== 'signup' && page !== 'forgot' && page !== 'landing') {
+      if (page !== 'forgot' && page !== 'landing') {
         setPage('landing');
       }
     } else {
       // Redirect authenticated users away from auth pages
-      if (page === 'login' || page === 'signup' || page === 'forgot' || page === 'landing') {
+      if (page === 'forgot' || page === 'landing') {
         setPage('home');
       }
     }
@@ -184,10 +184,6 @@ const AppContent: React.FC = () => {
         );
       case 'landing':
         return <LandingPage />;
-      case 'login':
-        return <LoginPage />;
-      case 'signup':
-        return <SignupPage />;
       case 'forgot':
         return <ForgotPasswordPage />;
       default:
@@ -201,7 +197,7 @@ const AppContent: React.FC = () => {
   };
 
   // Render minimal layout for auth pages to avoid sidebars/nav
-  if (!isAuthenticated && (page === 'landing' || page === 'login' || page === 'signup' || page === 'forgot')) {
+  if (!isAuthenticated && (page === 'landing' || page === 'forgot')) {
     return (
       <div className="bg-[rgba(var(--background-primary-rgb))] min-h-screen text-[rgba(var(--foreground-primary-rgb))] font-sans">
         {renderPage()}

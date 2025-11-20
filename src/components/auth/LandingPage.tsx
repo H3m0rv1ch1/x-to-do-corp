@@ -2,11 +2,13 @@ import React, { useState } from 'react';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useAuth } from '@/hooks/useAuth';
 import { FaXTwitter } from 'react-icons/fa6';
+import { HiCloud, HiLockClosed, HiArrowRight } from 'react-icons/hi';
 
 const LandingPage: React.FC = () => {
   const { setPage, addToast } = useAppContext();
-  const { login, signup } = useAuth();
-  const [mode, setMode] = useState<'none' | 'login' | 'signup'>('none');
+  const { login, signup, signupLocal, loginLocal } = useAuth();
+  const [mode, setMode] = useState<'none' | 'login' | 'signup-choice' | 'signup-online' | 'signup-offline'>('none');
+  const [signupType, setSignupType] = useState<'online' | 'offline' | null>(null);
   const [loading, setLoading] = useState(false);
 
   // Login form state
@@ -41,14 +43,22 @@ const LandingPage: React.FC = () => {
       addToast('Passwords do not match', 'error');
       return;
     }
-    if (signupPassword.length < 8) {
-      addToast('Use at least 8 characters', 'error');
+
+    const minLength = signupType === 'offline' ? 4 : 8;
+    if (signupPassword.length < minLength) {
+      addToast(`Use at least ${minLength} characters`, 'error');
       return;
     }
+
     setLoading(true);
     try {
-      await signup(name.trim(), signupEmail.trim(), signupPassword);
-      addToast('Account created!', 'success');
+      if (signupType === 'offline') {
+        await signupLocal(name.trim(), signupEmail.trim(), signupPassword);
+        addToast('Offline account created!', 'success');
+      } else {
+        await signup(name.trim(), signupEmail.trim(), signupPassword);
+        addToast('Account created!', 'success');
+      }
       setPage('home');
     } catch (err: any) {
       addToast(err?.message || 'Signup failed', 'error');
@@ -75,7 +85,7 @@ const LandingPage: React.FC = () => {
                 <button
                   type="button"
                   className="rounded-full bg-white text-black py-2.5 px-4 font-semibold shadow hover:opacity-90 transition w-full"
-                  onClick={() => setMode('signup')}
+                  onClick={() => setMode('signup-choice')}
                 >
                   Create account
                 </button>
@@ -178,9 +188,80 @@ const LandingPage: React.FC = () => {
             </div>
           )}
 
-          {mode === 'signup' && (
+          {mode === 'signup-choice' && (
+            <div className="max-w-[400px]">
+              <h2 className="text-2xl font-bold mb-3">Choose your account type</h2>
+              <p className="text-sm text-[rgba(var(--foreground-secondary-rgb))] mb-6">
+                Select the option that best fits your needs
+              </p>
+
+              <div className="space-y-3">
+                {/* Online Account Option */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSignupType('online');
+                    setMode('signup-online');
+                  }}
+                  className="w-full p-4 rounded-xl border border-[rgba(var(--border-primary-rgb))] hover:border-[rgba(var(--accent-rgb))] bg-[rgba(var(--background-primary-rgb))] hover:bg-[rgba(var(--background-secondary-rgb))] transition-all duration-200 text-left group"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="flex-shrink-0 w-12 h-12 rounded-full bg-[rgba(var(--accent-rgb),0.1)] flex items-center justify-center group-hover:bg-[rgba(var(--accent-rgb),0.2)] transition-colors">
+                      <HiCloud className="w-6 h-6 text-[rgba(var(--accent-rgb))]" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between mb-1">
+                        <h3 className="text-base font-bold group-hover:text-[rgba(var(--accent-rgb))] transition-colors">Online Account</h3>
+                        <HiArrowRight className="w-5 h-5 text-[rgba(var(--foreground-secondary-rgb))] group-hover:text-[rgba(var(--accent-rgb))] group-hover:translate-x-1 transition-all" />
+                      </div>
+                      <p className="text-sm text-[rgba(var(--foreground-secondary-rgb))]">
+                        Cloud sync across all devices
+                      </p>
+                    </div>
+                  </div>
+                </button>
+
+                {/* Offline Account Option */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSignupType('offline');
+                    setMode('signup-offline');
+                  }}
+                  className="w-full p-4 rounded-xl border border-[rgba(var(--border-primary-rgb))] hover:border-[rgba(var(--accent-rgb))] bg-[rgba(var(--background-primary-rgb))] hover:bg-[rgba(var(--background-secondary-rgb))] transition-all duration-200 text-left group"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="flex-shrink-0 w-12 h-12 rounded-full bg-[rgba(var(--accent-rgb),0.1)] flex items-center justify-center group-hover:bg-[rgba(var(--accent-rgb),0.2)] transition-colors">
+                      <HiLockClosed className="w-6 h-6 text-[rgba(var(--accent-rgb))]" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between mb-1">
+                        <h3 className="text-base font-bold group-hover:text-[rgba(var(--accent-rgb))] transition-colors">Offline Account</h3>
+                        <HiArrowRight className="w-5 h-5 text-[rgba(var(--foreground-secondary-rgb))] group-hover:text-[rgba(var(--accent-rgb))] group-hover:translate-x-1 transition-all" />
+                      </div>
+                      <p className="text-sm text-[rgba(var(--foreground-secondary-rgb))]">
+                        Local storage, privacy-focused
+                      </p>
+                    </div>
+                  </div>
+                </button>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setMode('none')}
+                className="mt-6 w-full py-2.5 rounded-full border border-[rgba(var(--border-primary-rgb))] font-semibold hover:bg-[rgba(var(--background-secondary-rgb))] transition"
+              >
+                Back
+              </button>
+            </div>
+          )}
+
+          {(mode === 'signup-online' || mode === 'signup-offline') && (
             <div className="max-w-[340px]">
-              <h2 className="text-xl font-semibold mb-5">Create your account</h2>
+              <h2 className="text-xl font-semibold mb-5">
+                {signupType === 'offline' ? 'Create offline account' : 'Create online account'}
+              </h2>
               <form onSubmit={handleSignupSubmit} className="space-y-3">
                 <div>
                   <label className="block text-sm mb-1 text-[rgba(var(--foreground-secondary-rgb))]">Name</label>
@@ -233,9 +314,9 @@ const LandingPage: React.FC = () => {
                   <button
                     type="button"
                     className="px-4 py-2 rounded-full border border-[rgba(var(--border-primary-rgb))]"
-                    onClick={() => setMode('none')}
+                    onClick={() => setMode('signup-choice')}
                   >
-                    Cancel
+                    Back
                   </button>
                 </div>
                 <p className="text-xs text-[rgba(var(--foreground-secondary-rgb))] leading-relaxed mt-2">
