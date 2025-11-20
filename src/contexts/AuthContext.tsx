@@ -10,9 +10,10 @@ export interface AuthUser {
 interface AuthContextType {
   user: AuthUser | null;
   isAuthenticated: boolean;
+  isLoading: boolean;
   login: (email: string, password: string, remember?: boolean) => Promise<void>;
   signup: (name: string, email: string, password: string) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
   requestPasswordReset: (email: string) => Promise<void>;
 }
 
@@ -38,7 +39,7 @@ function readUsers(): Record<string, StoredUser> {
 }
 
 function writeUsers(users: Record<string, StoredUser>) {
-  try { localStorage.setItem('auth_users', JSON.stringify(users)); } catch {}
+  try { localStorage.setItem('auth_users', JSON.stringify(users)); } catch { }
 }
 
 function readSession(): AuthUser | null {
@@ -54,22 +55,24 @@ function writeSession(user: AuthUser | null) {
   try {
     if (user) localStorage.setItem('auth_session', JSON.stringify(user));
     else localStorage.removeItem('auth_session');
-  } catch {}
+  } catch { }
 }
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<AuthUser | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   // Auth wiring: Supabase first, else local fallback
   useEffect(() => {
     if (isSupabaseConfigured()) {
       const supabase = getSupabase();
       // Initialize from current session
-      void supabase.auth.getUser().then(({ data }) => {
-        const u = data.user;
+      void supabase.auth.getSession().then(({ data }) => {
+        const u = data.session?.user;
         if (u) {
           setUser({ id: u.id, name: (u.user_metadata?.name as string) || u.email || 'User', email: u.email || '' });
         }
+        setIsLoading(false);
       });
       const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
         const u = session?.user;
@@ -84,6 +87,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const existing = readSession();
     if (existing) setUser(existing);
+    setIsLoading(false);
   }, []);
 
   const login = async (email: string, password: string, remember: boolean = true) => {
@@ -94,7 +98,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const u = data.user;
       if (u) setUser({ id: u.id, name: (u.user_metadata?.name as string) || u.email || 'User', email: u.email || '' });
       // Supabase persists sessions by default; reflect checkbox in a flag only
-      try { localStorage.setItem('remember_me', remember ? '1' : '0'); } catch {}
+      try { localStorage.setItem('remember_me', remember ? '1' : '0'); } catch { }
       return;
     }
     // Local fallback
@@ -114,11 +118,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
-        options: { data: { name } },
+        options: {
+          data: { name },
+          emailRedirectTo: window.location.origin + '/app'
+        },
       });
-      if (error) throw new Error(error.message);
+      if (error) {
+        throw new Error(error.message);
+      }
       const u = data.user;
-      if (u) setUser({ id: u.id, name: name || u.email || 'User', email: u.email || '' });
+      if (u) {
+        // Set user immediately even if email not confirmed
+        // Supabase session will be active if auto-confirm is enabled
+        setUser({ id: u.id, name: name || u.email || 'User', email: u.email || '' });
+
+        // If email confirmation is required and not confirmed yet
+        if (!u.confirmed_at && data.session === null) {
+          throw new Error('Please check your email to confirm your account before logging in.');
+        }
+      }
       return;
     }
     // Local fallback
@@ -162,19 +180,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const token = crypto.randomUUID();
       localStorage.setItem(`reset_${key}`, token);
-    } catch {}
+    } catch { }
   };
 
-  const value = useMemo<AuthContextType>(() => ({
-    user,
-    isAuthenticated: !!user,
-    login,
-    signup,
-    logout,
-    requestPasswordReset,
-  }), [user]);
-
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={{ user, isAuthenticated: !!user, isLoading, login, signup, logout, requestPasswordReset }}>
+      {children}
+    </AuthContext.Provider>
+  );
 };
 
 export function useAuth() {

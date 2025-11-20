@@ -19,4 +19,4 @@ const TodoItemSkeleton: React.FC = () => {
   );
 };
 
-export default TodoItemSkeleton;
+export default React.memo(TodoItemSkeleton);

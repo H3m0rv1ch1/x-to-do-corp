@@ -7,6 +7,8 @@ import { Avatar, DatePicker, RecurrencePicker, ReminderPicker, PriorityPicker, T
 import PortalMenu from '@/components/ui/PortalMenu';
 import { type UserProfile, type RecurrenceType, type Priority, type Todo } from '@/types';
 import useClickOutside from '@/hooks/useClickOutside';
+import { useAuth } from '@/hooks/useAuth';
+import { uploadImage } from '@/services/imageUpload';
 
 interface AddTodoFormProps {
   onAddTodo: (todoData: { text: string; imageUrl: string | null; dueDate: string | null; priority: Priority; subtasks: string[], tags: string[], recurrenceRule: { type: RecurrenceType } | null, reminderOffset: number | null }) => Promise<string>;
@@ -18,6 +20,7 @@ interface AddTodoFormProps {
 }
 
 const AddTodoForm: React.FC<AddTodoFormProps> = ({ onAddTodo, userProfile, onTaskAdded, editingTodo, onUpdateTodo, onEditCancel }) => {
+  const { user } = useAuth();
   const [text, setText] = useState('');
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [dueDate, setDueDate] = useState<string | null>(null);
@@ -25,7 +28,7 @@ const AddTodoForm: React.FC<AddTodoFormProps> = ({ onAddTodo, userProfile, onTas
   const [recurrenceRule, setRecurrenceRule] = useState<{ type: RecurrenceType } | null>(null);
   const [reminderOffset, setReminderOffset] = useState<number | null>(null);
   const [imageError, setImageError] = useState<string | null>(null);
-  
+
   const [subtasks, setSubtasks] = useState<string[]>([]);
   const [currentSubtask, setCurrentSubtask] = useState('');
   const [showSubtaskInput, setShowSubtaskInput] = useState(false);
@@ -33,7 +36,7 @@ const AddTodoForm: React.FC<AddTodoFormProps> = ({ onAddTodo, userProfile, onTas
   const [tags, setTags] = useState<string[]>([]);
   const [currentTag, setCurrentTag] = useState('');
   const [showTagInput, setShowTagInput] = useState(false);
-  
+
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
   const datePickerRef = useRef<HTMLDivElement>(null);
   const [isPriorityPickerOpen, setIsPriorityPickerOpen] = useState(false);
@@ -107,7 +110,7 @@ const AddTodoForm: React.FC<AddTodoFormProps> = ({ onAddTodo, userProfile, onTas
     : charsLeft < 20
       ? 'rgba(var(--warning-rgb))'
       : 'rgba(var(--accent-rgb))';
-  
+
   const handleAddSubtask = () => {
     if (currentSubtask.trim()) {
       setSubtasks([...subtasks, currentSubtask.trim()]);
@@ -125,24 +128,24 @@ const AddTodoForm: React.FC<AddTodoFormProps> = ({ onAddTodo, userProfile, onTas
       handleAddSubtask();
     }
   };
-  
+
   const handleAddTag = () => {
     const newTag = currentTag.trim().replace(/[^a-zA-Z0-9]/g, '');
     if (newTag && !tags.includes(newTag)) {
-        setTags([...tags, newTag]);
+      setTags([...tags, newTag]);
     }
     setCurrentTag('');
   };
-  
+
   const handleDeleteTag = (tagToDelete: string) => {
-      setTags(tags.filter(tag => tag !== tagToDelete));
+    setTags(tags.filter(tag => tag !== tagToDelete));
   };
 
   const handleTagKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-      if (e.key === 'Enter') {
-          e.preventDefault();
-          handleAddTag();
-      }
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleAddTag();
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -172,8 +175,9 @@ const AddTodoForm: React.FC<AddTodoFormProps> = ({ onAddTodo, userProfile, onTas
       }
     }
   };
-  
-  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+
+
+  const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     setImageError(null);
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
@@ -184,12 +188,27 @@ const AddTodoForm: React.FC<AddTodoFormProps> = ({ onAddTodo, userProfile, onTas
         e.target.value = ""; // Reset file input
         return;
       }
-      
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImageUrl(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+
+      if (!user?.id) {
+        setImageError("You must be logged in to upload images.");
+        return;
+      }
+
+      try {
+        // Show loading state
+        setImageError("Compressing and uploading...");
+
+        // Compress and upload to Supabase Storage
+        const publicUrl = await uploadImage(file, user.id, 'todos');
+
+        // Set the URL
+        setImageUrl(publicUrl);
+        setImageError(null);
+      } catch (error: any) {
+        console.error('Image upload failed:', error);
+        setImageError(error.message || "Failed to upload image.");
+        e.target.value = ""; // Reset file input
+      }
     }
   };
 
@@ -199,11 +218,11 @@ const AddTodoForm: React.FC<AddTodoFormProps> = ({ onAddTodo, userProfile, onTas
   };
 
   const formattedDueDate = dueDate ? new Date(dueDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' }) : null;
-  
+
   const moreOptions = [
-    { 
-      icon: HiArrowPath, 
-      label: 'Recurrence', 
+    {
+      icon: HiArrowPath,
+      label: 'Recurrence',
       action: () => setIsRecurrencePickerOpen(true),
       isActive: !!recurrenceRule,
       ref: recurrencePickerRef,
@@ -216,9 +235,9 @@ const AddTodoForm: React.FC<AddTodoFormProps> = ({ onAddTodo, userProfile, onTas
         />
       )
     },
-    { 
-      icon: HiOutlineBell, 
-      label: 'Reminder', 
+    {
+      icon: HiOutlineBell,
+      label: 'Reminder',
       action: () => setIsReminderPickerOpen(true),
       isActive: reminderOffset !== null,
       disabled: !dueDate,
@@ -226,16 +245,16 @@ const AddTodoForm: React.FC<AddTodoFormProps> = ({ onAddTodo, userProfile, onTas
       ref: reminderPickerRef,
       picker: (
         <ReminderPicker
-            isOpen={isReminderPickerOpen}
-            onClose={() => setIsReminderPickerOpen(false)}
-            onSelect={setReminderOffset}
-            currentOffset={reminderOffset}
+          isOpen={isReminderPickerOpen}
+          onClose={() => setIsReminderPickerOpen(false)}
+          onSelect={setReminderOffset}
+          currentOffset={reminderOffset}
         />
       )
     },
-    { 
-      icon: HiOutlineViewList, 
-      label: 'Subtasks', 
+    {
+      icon: HiOutlineViewList,
+      label: 'Subtasks',
       action: () => setShowSubtaskInput(prev => !prev),
       isActive: showSubtaskInput
     },
@@ -259,40 +278,40 @@ const AddTodoForm: React.FC<AddTodoFormProps> = ({ onAddTodo, userProfile, onTas
             maxLength={MAX_CHARS}
             autoFocus
           />
-          
+
           {showTagInput && (
-             <div className="my-3 border-t border-[rgba(var(--border-primary-rgb))] pt-3 animate-fade-in">
-                {tags.length > 0 && (
-                    <div className="flex flex-wrap gap-2 mb-3">
-                        {tags.map((tag) => (
-                          <div key={tag} className="flex items-center justify-between text-sm bg-[rgba(var(--background-secondary-rgb))] py-1.5 pl-3 pr-2 rounded-full group">
-                            <span className="text-[rgba(var(--accent-rgb))]">#{tag}</span>
-                            <button type="button" onClick={() => handleDeleteTag(tag)} aria-label={`Remove tag: ${tag}`} className="ml-2 p-0.5 rounded-full opacity-50 group-hover:opacity-100 hover:bg-[rgba(var(--background-tertiary-rgb))]">
-                              <HiX className="w-2.5 h-2.5 text-[rgba(var(--foreground-secondary-rgb))]" />
-                            </button>
-                          </div>
-                        ))}
+            <div className="my-3 border-t border-[rgba(var(--border-primary-rgb))] pt-3 animate-fade-in">
+              {tags.length > 0 && (
+                <div className="flex flex-wrap gap-2 mb-3">
+                  {tags.map((tag) => (
+                    <div key={tag} className="flex items-center justify-between text-sm bg-[rgba(var(--background-secondary-rgb))] py-1.5 pl-3 pr-2 rounded-full group">
+                      <span className="text-[rgba(var(--accent-rgb))]">#{tag}</span>
+                      <button type="button" onClick={() => handleDeleteTag(tag)} aria-label={`Remove tag: ${tag}`} className="ml-2 p-0.5 rounded-full opacity-50 group-hover:opacity-100 hover:bg-[rgba(var(--background-tertiary-rgb))]">
+                        <HiX className="w-2.5 h-2.5 text-[rgba(var(--foreground-secondary-rgb))]" />
+                      </button>
                     </div>
-                )}
-                 <div className="flex items-center space-x-2">
-                    <input
-                        type="text"
-                        value={currentTag}
-                        onChange={(e) => setCurrentTag(e.target.value)}
-                        onKeyDown={handleTagKeyDown}
-                        placeholder="Type a tag and press Enter"
-                        className="flex-1 w-full bg-[rgba(var(--background-secondary-rgb))] border border-[rgba(var(--border-secondary-rgb))] rounded-full py-1.5 px-4 text-[rgba(var(--foreground-primary-rgb))] placeholder-[rgba(var(--foreground-secondary-rgb))] focus:outline-none focus:ring-1 focus:ring-[rgba(var(--accent-rgb))] focus:border-[rgba(var(--accent-rgb))]"
-                    />
-                    <button
-                        type="button"
-                        onClick={handleAddTag}
-                        className="border border-[rgba(var(--accent-rgb))] text-[rgba(var(--accent-rgb))] font-bold px-4 py-1.5 rounded-full hover:bg-[rgba(var(--accent-rgb),0.1)] transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                        disabled={!currentTag.trim()}
-                    >
-                        Add
-                    </button>
+                  ))}
                 </div>
-             </div>
+              )}
+              <div className="flex items-center space-x-2">
+                <input
+                  type="text"
+                  value={currentTag}
+                  onChange={(e) => setCurrentTag(e.target.value)}
+                  onKeyDown={handleTagKeyDown}
+                  placeholder="Type a tag and press Enter"
+                  className="flex-1 w-full bg-[rgba(var(--background-secondary-rgb))] border border-[rgba(var(--border-secondary-rgb))] rounded-full py-1.5 px-4 text-[rgba(var(--foreground-primary-rgb))] placeholder-[rgba(var(--foreground-secondary-rgb))] focus:outline-none focus:ring-1 focus:ring-[rgba(var(--accent-rgb))] focus:border-[rgba(var(--accent-rgb))]"
+                />
+                <button
+                  type="button"
+                  onClick={handleAddTag}
+                  className="border border-[rgba(var(--accent-rgb))] text-[rgba(var(--accent-rgb))] font-bold px-4 py-1.5 rounded-full hover:bg-[rgba(var(--accent-rgb),0.1)] transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={!currentTag.trim()}
+                >
+                  Add
+                </button>
+              </div>
+            </div>
           )}
 
           {showSubtaskInput && (
@@ -333,7 +352,7 @@ const AddTodoForm: React.FC<AddTodoFormProps> = ({ onAddTodo, userProfile, onTas
           {imageUrl && (
             <div className="mt-2 relative w-full max-w-xs animate-fade-in">
               <img src={imageUrl} alt="Preview" className="rounded-lg w-full h-auto border border-[rgba(var(--border-secondary-rgb))]" />
-              <button 
+              <button
                 type="button"
                 onClick={() => { setImageUrl(null); setImageError(null); }}
                 className="absolute top-2 right-2 bg-black/60 rounded-full p-1 hover:bg-black/80 transition-colors"
@@ -343,11 +362,11 @@ const AddTodoForm: React.FC<AddTodoFormProps> = ({ onAddTodo, userProfile, onTas
               </button>
             </div>
           )}
-           {formattedDueDate && (
+          {formattedDueDate && (
             <div className="mt-2 text-sm text-[rgba(var(--accent-rgb))] bg-[rgba(var(--accent-rgb),0.1)] px-2 py-1 rounded-full inline-flex items-center space-x-2">
               <span>Due: {formattedDueDate}</span>
-               <button type="button" onClick={() => setDueDate(null)} aria-label="Clear date">
-                  <HiX className="w-3 h-3 text-[rgba(var(--accent-rgb))]" />
+              <button type="button" onClick={() => setDueDate(null)} aria-label="Clear date">
+                <HiX className="w-3 h-3 text-[rgba(var(--accent-rgb))]" />
               </button>
             </div>
           )}
@@ -356,11 +375,11 @@ const AddTodoForm: React.FC<AddTodoFormProps> = ({ onAddTodo, userProfile, onTas
             <div className="flex items-center space-x-0">
               <Tooltip text="Add image">
                 <label htmlFor={imageUploadId} className="p-2 rounded-full text-[rgba(var(--accent-rgb))] hover:bg-[rgba(var(--accent-rgb),0.1)] transition-colors duration-200 cursor-pointer flex items-center justify-center" aria-label="Add image">
-                    <HiOutlinePhotograph className="w-5 h-5" />
+                  <HiOutlinePhotograph className="w-5 h-5" />
                 </label>
               </Tooltip>
-               <input type="file" id={imageUploadId} accept="image/*" onChange={handleImageSelect} className="sr-only" />
-               <div className="relative" ref={datePickerRef}>
+              <input type="file" id={imageUploadId} accept="image/*" onChange={handleImageSelect} className="sr-only" />
+              <div className="relative" ref={datePickerRef}>
                 <Tooltip text="Set due date">
                   <button
                     type="button"
@@ -370,36 +389,36 @@ const AddTodoForm: React.FC<AddTodoFormProps> = ({ onAddTodo, userProfile, onTas
                     aria-haspopup="true"
                     aria-expanded={isDatePickerOpen}
                   >
-                      <HiOutlineCalendar className="w-5 h-5" />
+                    <HiOutlineCalendar className="w-5 h-5" />
                   </button>
                 </Tooltip>
-                 <DatePicker 
-                    isOpen={isDatePickerOpen}
-                    onClose={() => setIsDatePickerOpen(false)}
-                    onSelectDate={handleDateSelect}
-                    selectedDate={dueDate ? new Date(dueDate) : null}
-                    minDate={new Date()}
-                 />
-               </div>
+                <DatePicker
+                  isOpen={isDatePickerOpen}
+                  onClose={() => setIsDatePickerOpen(false)}
+                  onSelectDate={handleDateSelect}
+                  selectedDate={dueDate ? new Date(dueDate) : null}
+                  minDate={new Date()}
+                />
+              </div>
               <div className="relative" ref={priorityPickerRef}>
-                  <Tooltip text="Set priority">
-                    <button
-                        type="button"
-                        onClick={() => setIsPriorityPickerOpen(prev => !prev)}
-                        className="p-2 rounded-full text-[rgba(var(--accent-rgb))] hover:bg-[rgba(var(--accent-rgb),0.1)] transition-colors duration-200 flex items-center justify-center"
-                        aria-label="Set priority"
-                        aria-haspopup="true"
-                        aria-expanded={isPriorityPickerOpen}
-                    >
-                        {isPriorityPickerOpen || priority !== 'none' ? <HiFlag className="w-5 h-5" /> : <HiOutlineFlag className="w-5 h-5" />}
-                    </button>
-                  </Tooltip>
-                  <PriorityPicker
-                      isOpen={isPriorityPickerOpen}
-                      onClose={() => setIsPriorityPickerOpen(false)}
-                      onSelect={setPriority}
-                      currentPriority={priority}
-                  />
+                <Tooltip text="Set priority">
+                  <button
+                    type="button"
+                    onClick={() => setIsPriorityPickerOpen(prev => !prev)}
+                    className="p-2 rounded-full text-[rgba(var(--accent-rgb))] hover:bg-[rgba(var(--accent-rgb),0.1)] transition-colors duration-200 flex items-center justify-center"
+                    aria-label="Set priority"
+                    aria-haspopup="true"
+                    aria-expanded={isPriorityPickerOpen}
+                  >
+                    {isPriorityPickerOpen || priority !== 'none' ? <HiFlag className="w-5 h-5" /> : <HiOutlineFlag className="w-5 h-5" />}
+                  </button>
+                </Tooltip>
+                <PriorityPicker
+                  isOpen={isPriorityPickerOpen}
+                  onClose={() => setIsPriorityPickerOpen(false)}
+                  onSelect={setPriority}
+                  currentPriority={priority}
+                />
               </div>
 
               <Tooltip text="Add tags">
@@ -409,7 +428,7 @@ const AddTodoForm: React.FC<AddTodoFormProps> = ({ onAddTodo, userProfile, onTas
                   className={`p-2 rounded-full text-[rgba(var(--accent-rgb))] hover:bg-[rgba(var(--accent-rgb),0.1)] transition-colors duration-200 flex items-center justify-center ${showTagInput ? 'bg-[rgba(var(--accent-rgb),0.1)]' : ''}`}
                   aria-label="Add tags"
                 >
-                    {showTagInput ? <HiHashtag className="w-5 h-5" /> : <HiOutlineHashtag className="w-5 h-5" />}
+                  {showTagInput ? <HiHashtag className="w-5 h-5" /> : <HiOutlineHashtag className="w-5 h-5" />}
                 </button>
               </Tooltip>
 
@@ -489,8 +508,8 @@ const AddTodoForm: React.FC<AddTodoFormProps> = ({ onAddTodo, userProfile, onTas
                   Cancel
                 </button>
               )}
-              <button 
-                type="submit" 
+              <button
+                type="submit"
                 className="bg-[rgba(var(--button-primary-bg-rgb))] text-[rgba(var(--button-primary-text-rgb))] font-bold px-4 py-1.5 rounded-full hover:opacity-90 transition-transform duration-150 active:scale-95 focus:outline-none focus:ring-2 focus:ring-[rgba(var(--accent-rgb),0.35)] disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={!text.trim() || !!imageError}
               >

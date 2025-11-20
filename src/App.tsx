@@ -1,10 +1,6 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, lazy, Suspense } from 'react';
 import { Header, LeftSidebar, RightSidebar, BottomNavbar } from '@/components/layout';
 import { TodoList, AddTaskFab } from '@/components/todo';
-import { ProfilePage, AchievementsPage } from '@/components/profile';
-import { NotesPage } from '@/components/notes';
-import { SettingsPage } from '@/components/settings';
-import { CalendarPage } from '@/components/calendar';
 import { AddTaskModal, ConfirmationModal, ImageLightbox, FocusModeModal, ShortcutsModal, DayTasksModal } from '@/components/modals';
 import { ToastContainer } from '@/components/ui';
 import { AppProvider } from '@/contexts/AppContext';
@@ -15,12 +11,20 @@ import SignupPage from '@/components/auth/SignupPage';
 import ForgotPasswordPage from '@/components/auth/ForgotPasswordPage';
 import LandingPage from '@/components/auth/LandingPage';
 import { useAppContext } from '@/hooks/useAppContext';
+import { FaXTwitter } from 'react-icons/fa6';
+
+// Lazy load heavy pages for better initial load performance
+const ProfilePage = lazy(() => import('@/components/profile/ProfilePage'));
+const AchievementsPage = lazy(() => import('@/components/profile/AchievementsPage'));
+const NotesPage = lazy(() => import('@/components/notes/NotesPage'));
+const SettingsPage = lazy(() => import('@/components/settings/SettingsPage'));
+const CalendarPage = lazy(() => import('@/components/calendar/CalendarPage'));
 
 
 const AppContent: React.FC = () => {
-  const { 
-    page, 
-    userProfile, 
+  const {
+    page,
+    userProfile,
     setPage,
     setFilter,
     confirmationState,
@@ -39,29 +43,37 @@ const AppContent: React.FC = () => {
     openShortcutsModal,
     closeShortcutsModal,
   } = useAppContext();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isLoading } = useAuth();
 
+  // CRITICAL: All hooks must be called before any conditional returns!
+  // Redirect logic
   useEffect(() => {
     if (!isAuthenticated) {
       // Gate the app behind the Login page for unauthenticated users
       if (page !== 'login' && page !== 'signup' && page !== 'forgot' && page !== 'landing') {
         setPage('landing');
       }
+    } else {
+      // Redirect authenticated users away from auth pages
+      if (page === 'login' || page === 'signup' || page === 'forgot' || page === 'landing') {
+        setPage('home');
+      }
     }
   }, [isAuthenticated, setPage, page]);
 
+  // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Allow shortcuts in inputs only for specific keys like Escape
       if ((e.target as HTMLElement).tagName === 'INPUT' || (e.target as HTMLElement).tagName === 'TEXTAREA') {
         if (e.key === 'Escape') {
-            // Allow escape to blur the element and close modals
-            (e.target as HTMLElement).blur();
+          // Allow escape to blur the element and close modals
+          (e.target as HTMLElement).blur();
         } else if (e.key !== '/') {
-            return;
+          return;
         }
       }
-      
+
       // Close Modals with Escape
       if (e.key === 'Escape') {
         if (lightboxImageUrl) return closeLightbox();
@@ -74,42 +86,61 @@ const AppContent: React.FC = () => {
 
       // Prevent default for single-key shortcuts that might conflict with typing
       if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
-          switch (e.key) {
-              case 'a':
-              case 'n':
-                  e.preventDefault();
-                  openAddTaskModal();
-                  break;
-              case '/':
-                  e.preventDefault();
-                  document.getElementById('global-search-input')?.focus();
-                  break;
-              case '?':
-                  e.preventDefault();
-                  openShortcutsModal();
-                  break;
-              case 'h': setPage('home'); setFilter('all'); break;
-              case 'p': setPage('profile'); break;
-              case 'c': setPage('calendar'); break;
-              case 'o': setPage('notes'); break; // 'o' for nOtes
-              case 's': setPage('settings'); break;
-          }
+        switch (e.key) {
+          case 'a':
+          case 'n':
+            e.preventDefault();
+            openAddTaskModal();
+            break;
+          case '/':
+            e.preventDefault();
+            document.getElementById('global-search-input')?.focus();
+            break;
+          case '?':
+            e.preventDefault();
+            openShortcutsModal();
+            break;
+          case 'h': setPage('home'); setFilter('all'); break;
+          case 'p': setPage('profile'); break;
+          case 'c': setPage('calendar'); break;
+          case 'o': setPage('notes'); break; // 'o' for nOtes
+          case 's': setPage('settings'); break;
+        }
       }
     };
-    
+
     window.addEventListener('keydown', handleKeyDown);
     return () => {
-        window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keydown', handleKeyDown);
     }
   }, [
-    lightboxImageUrl, isShortcutsModalOpen, isFocusModalOpen, confirmationState.isOpen, 
-    isAddTaskModalOpen, dayDetail, closeLightbox, closeShortcutsModal, 
-    closeFocusModal, hideConfirmation, closeAddTaskModal, closeDayDetailModal, 
+    lightboxImageUrl, isShortcutsModalOpen, isFocusModalOpen, confirmationState.isOpen,
+    isAddTaskModalOpen, dayDetail, closeLightbox, closeShortcutsModal,
+    closeFocusModal, hideConfirmation, closeAddTaskModal, closeDayDetailModal,
     openAddTaskModal, openShortcutsModal, setPage, setFilter
   ]);
-  
+
+  // Loading screen AFTER all hooks (React Rules of Hooks requirement)
+  if (isLoading) {
+    return (
+      <div className="min-h-screen w-full flex items-center justify-center bg-[rgba(var(--background-primary-rgb))]">
+        <div className="flex flex-col items-center justify-center text-center">
+          <FaXTwitter className="w-24 h-24 text-white mb-6 animate-pulse" />
+          <h1 className="text-3xl font-extrabold text-white">X To-Do Corp</h1>
+        </div>
+      </div>
+    );
+  }
+
   const renderPage = () => {
-    switch(page) {
+    // Simple loading fallback for lazy-loaded pages
+    const PageLoader = () => (
+      <div className="flex items-center justify-center h-screen">
+        <div className="animate-pulse text-[rgba(var(--foreground-secondary-rgb))]">Loading...</div>
+      </div>
+    );
+
+    switch (page) {
       case 'home':
         return (
           <>
@@ -119,21 +150,38 @@ const AppContent: React.FC = () => {
         );
       case 'profile':
         return (
-          <ProfilePage 
-            userProfile={userProfile}
-            setPage={setPage}
-          />
+          <Suspense fallback={<PageLoader />}>
+            <ProfilePage
+              userProfile={userProfile}
+              setPage={setPage}
+            />
+          </Suspense>
         );
       case 'notes':
-         return (
+        return (
+          <Suspense fallback={<PageLoader />}>
             <NotesPage />
+          </Suspense>
         );
       case 'achievements':
-        return <AchievementsPage />;
+        return (
+          <Suspense fallback={<PageLoader />}>
+            <AchievementsPage />
+          </Suspense>
+        );
       case 'settings':
-        return <SettingsPage />;
+        return (
+          <Suspense fallback={<PageLoader />}>
+            <SettingsPage />
+          </Suspense>
+        );
       case 'calendar':
-        return <CalendarPage />;
+        return (
+          <Suspense fallback={<PageLoader />}>
+            <Header />
+            <CalendarPage />
+          </Suspense>
+        );
       case 'landing':
         return <LandingPage />;
       case 'login':
@@ -174,7 +222,7 @@ const AppContent: React.FC = () => {
       <AddTaskFab />
       <BottomNavbar />
       <AddTaskModal />
-      <ConfirmationModal 
+      <ConfirmationModal
         isOpen={confirmationState.isOpen}
         onClose={hideConfirmation}
         onConfirm={handleConfirm}
@@ -185,11 +233,11 @@ const AppContent: React.FC = () => {
       <ToastContainer toasts={toasts} />
       {dayDetail && (
         <DayTasksModal
-            date={dayDetail.date}
-            tasks={dayDetail.tasks}
-            notes={dayDetail.notes}
-            isOpen={!!dayDetail}
-            onClose={closeDayDetailModal}
+          date={dayDetail.date}
+          tasks={dayDetail.tasks}
+          notes={dayDetail.notes}
+          isOpen={!!dayDetail}
+          onClose={closeDayDetailModal}
         />
       )}
       <FocusModeModal />

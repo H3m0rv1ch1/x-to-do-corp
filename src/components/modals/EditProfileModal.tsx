@@ -2,6 +2,8 @@ import React, { useState, useRef } from 'react';
 import { HiX, HiPhotograph } from 'react-icons/hi';
 import { HiOutlineCamera } from 'react-icons/hi2';
 import { type UserProfile } from '@/types';
+import { useAuth } from '@/hooks/useAuth';
+import { uploadImage } from '@/services/imageUpload';
 
 interface EditProfileModalProps {
   userProfile: UserProfile;
@@ -10,7 +12,9 @@ interface EditProfileModalProps {
 }
 
 const EditProfileModal: React.FC<EditProfileModalProps> = ({ userProfile, onSave, onClose }) => {
+  const { user } = useAuth();
   const [editedProfile, setEditedProfile] = useState<UserProfile>(userProfile);
+  const [isUploading, setIsUploading] = useState(false);
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const bannerInputRef = useRef<HTMLInputElement>(null);
   const organizationAvatarInputRef = useRef<HTMLInputElement>(null);
@@ -25,18 +29,44 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({ userProfile, onSave
     setEditedProfile(prev => ({ ...prev, username: `@${newUsername}` }));
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, field: 'avatarUrl' | 'bannerUrl' | 'organizationAvatarUrl') => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>, field: 'avatarUrl' | 'bannerUrl' | 'organizationAvatarUrl') => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setEditedProfile(prev => ({ ...prev, [field]: reader.result as string }));
-      };
-      reader.readAsDataURL(file);
+
+      if (!user?.id) {
+        alert("You must be logged in to upload images.");
+        return;
+      }
+
+      try {
+        setIsUploading(true);
+
+        // Compress and upload to Supabase Storage
+        const folderMap = {
+          avatarUrl: 'profiles/avatars',
+          bannerUrl: 'profiles/banners',
+          organizationAvatarUrl: 'profiles/org-avatars'
+        };
+
+        const publicUrl = await uploadImage(file, user.id, folderMap[field]);
+
+        // Update profile with new URL
+        setEditedProfile(prev => ({ ...prev, [field]: publicUrl }));
+      } catch (error: any) {
+        console.error('Image upload failed:', error);
+        alert(error.message || "Failed to upload image. Please try again.");
+      } finally {
+        setIsUploading(false);
+        e.target.value = ""; // Reset input
+      }
     }
   };
 
   const handleSave = () => {
+    if (isUploading) {
+      alert("Please wait for images to finish uploading.");
+      return;
+    }
     onSave(editedProfile);
     onClose();
   };
@@ -62,7 +92,7 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({ userProfile, onSave
           {/* Banner and Avatar */}
           <div className="relative">
             <div className="h-48 bg-[rgba(var(--background-tertiary-rgb))] rounded-lg relative bg-cover bg-center" style={{ backgroundImage: `url(${editedProfile.bannerUrl})` }}>
-              <button 
+              <button
                 onClick={() => bannerInputRef.current?.click()}
                 className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-30 hover:bg-opacity-50 transition-opacity"
               >
@@ -71,7 +101,7 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({ userProfile, onSave
               <input type="file" accept="image/*" ref={bannerInputRef} onChange={(e) => handleFileChange(e, 'bannerUrl')} className="sr-only" />
             </div>
             <div className="absolute left-4 -bottom-12 w-24 h-24 border-4 border-[rgba(var(--background-primary-rgb))] rounded-full bg-[rgba(var(--background-tertiary-rgb))] bg-cover bg-center" style={{ backgroundImage: `url(${editedProfile.avatarUrl})` }}>
-               <button 
+              <button
                 onClick={() => avatarInputRef.current?.click()}
                 className="w-full h-full rounded-full flex items-center justify-center bg-black bg-opacity-30 hover:bg-opacity-50 transition-opacity"
               >
@@ -85,89 +115,89 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({ userProfile, onSave
             {/* Form Fields */}
             <div className="border border-[rgba(var(--border-secondary-rgb))] rounded-md p-3 focus-within:border-[rgba(var(--accent-rgb))]">
               <label htmlFor="name" className="text-xs text-[rgba(var(--foreground-secondary-rgb))]">Name</label>
-              <input 
-                type="text" 
+              <input
+                type="text"
                 id="name"
-                name="name" 
-                value={editedProfile.name} 
-                onChange={handleInputChange} 
+                name="name"
+                value={editedProfile.name}
+                onChange={handleInputChange}
                 className="w-full bg-transparent text-lg focus:outline-none"
               />
             </div>
 
-             <div className="border border-[rgba(var(--border-secondary-rgb))] rounded-md p-3 focus-within:border-[rgba(var(--accent-rgb))]">
-                <label htmlFor="username" className="text-xs text-[rgba(var(--foreground-secondary-rgb))]">Username</label>
-                <div className="flex items-baseline">
-                    <span className="text-lg text-[rgba(var(--foreground-secondary-rgb))]">@</span>
-                    <input
-                        type="text"
-                        id="username"
-                        name="username"
-                        value={editedProfile.username.startsWith('@') ? editedProfile.username.substring(1) : editedProfile.username}
-                        onChange={handleUsernameChange}
-                        className="w-full bg-transparent text-lg focus:outline-none"
-                    />
-                </div>
+            <div className="border border-[rgba(var(--border-secondary-rgb))] rounded-md p-3 focus-within:border-[rgba(var(--accent-rgb))]">
+              <label htmlFor="username" className="text-xs text-[rgba(var(--foreground-secondary-rgb))]">Username</label>
+              <div className="flex items-baseline">
+                <span className="text-lg text-[rgba(var(--foreground-secondary-rgb))]">@</span>
+                <input
+                  type="text"
+                  id="username"
+                  name="username"
+                  value={editedProfile.username.startsWith('@') ? editedProfile.username.substring(1) : editedProfile.username}
+                  onChange={handleUsernameChange}
+                  className="w-full bg-transparent text-lg focus:outline-none"
+                />
+              </div>
             </div>
 
             <div className="border border-[rgba(var(--border-secondary-rgb))] rounded-md p-3 focus-within:border-[rgba(var(--accent-rgb))]">
               <label htmlFor="bio" className="text-xs text-[rgba(var(--foreground-secondary-rgb))]">Bio</label>
-              <textarea 
+              <textarea
                 id="bio"
                 name="bio"
-                value={editedProfile.bio} 
-                onChange={handleInputChange} 
+                value={editedProfile.bio}
+                onChange={handleInputChange}
                 rows={3}
                 className="w-full bg-transparent text-lg focus:outline-none resize-none"
               />
             </div>
-            
-             <div className="border border-[rgba(var(--border-secondary-rgb))] rounded-md p-3 focus-within:border-[rgba(var(--accent-rgb))]">
-                <label htmlFor="organization" className="text-xs text-[rgba(var(--foreground-secondary-rgb))]">Organization</label>
-                <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 flex-shrink-0 relative">
-                    {editedProfile.organizationAvatarUrl ? (
-                        <img src={editedProfile.organizationAvatarUrl} alt="Organization logo" className="w-full h-full rounded-md object-cover" />
-                    ) : (
-                        <div className="w-full h-full rounded-md bg-[rgba(var(--background-tertiary-rgb))] flex items-center justify-center">
-                            <HiPhotograph className="w-5 h-5 text-[rgba(var(--foreground-secondary-rgb))]" />
-                        </div>
-                    )}
-                    <button
-                        type="button"
-                        onClick={() => organizationAvatarInputRef.current?.click()}
-                        className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-30 hover:bg-opacity-50 transition-opacity rounded-md"
-                        aria-label="Change organization logo"
-                    >
-                        <HiOutlineCamera className="w-5 h-5 text-white" />
-                    </button>
-                    <input type="file" accept="image/*" ref={organizationAvatarInputRef} onChange={(e) => handleFileChange(e, 'organizationAvatarUrl')} className="sr-only" />
+
+            <div className="border border-[rgba(var(--border-secondary-rgb))] rounded-md p-3 focus-within:border-[rgba(var(--accent-rgb))]">
+              <label htmlFor="organization" className="text-xs text-[rgba(var(--foreground-secondary-rgb))]">Organization</label>
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 flex-shrink-0 relative">
+                  {editedProfile.organizationAvatarUrl ? (
+                    <img src={editedProfile.organizationAvatarUrl} alt="Organization logo" className="w-full h-full rounded-md object-cover" />
+                  ) : (
+                    <div className="w-full h-full rounded-md bg-[rgba(var(--background-tertiary-rgb))] flex items-center justify-center">
+                      <HiPhotograph className="w-5 h-5 text-[rgba(var(--foreground-secondary-rgb))]" />
                     </div>
-                    <input
-                    type="text"
-                    id="organization"
-                    name="organization"
-                    placeholder="e.g. X Corp"
-                    value={editedProfile.organization || ''}
-                    onChange={handleInputChange}
-                    className="w-full bg-transparent text-lg focus:outline-none"
-                    />
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => organizationAvatarInputRef.current?.click()}
+                    className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-30 hover:bg-opacity-50 transition-opacity rounded-md"
+                    aria-label="Change organization logo"
+                  >
+                    <HiOutlineCamera className="w-5 h-5 text-white" />
+                  </button>
+                  <input type="file" accept="image/*" ref={organizationAvatarInputRef} onChange={(e) => handleFileChange(e, 'organizationAvatarUrl')} className="sr-only" />
                 </div>
+                <input
+                  type="text"
+                  id="organization"
+                  name="organization"
+                  placeholder="e.g. X Corp"
+                  value={editedProfile.organization || ''}
+                  onChange={handleInputChange}
+                  className="w-full bg-transparent text-lg focus:outline-none"
+                />
+              </div>
             </div>
 
-             <div className="p-3 border border-[rgba(var(--border-secondary-rgb))] rounded-md">
-                <label className="text-xs text-[rgba(var(--foreground-secondary-rgb))] mb-2 block">Verification Type</label>
-                <div className="flex justify-between space-x-2">
-                    <button onClick={() => setEditedProfile(p => ({...p, verificationType: 'none'}))} className={`flex-1 py-2 text-sm font-bold rounded-full transition-colors ${editedProfile.verificationType === 'none' ? 'bg-[rgba(var(--foreground-secondary-rgb))] text-[rgba(var(--background-primary-rgb))] ring-2 ring-[rgba(var(--foreground-secondary-rgb))]' : 'bg-[rgba(var(--background-tertiary-rgb))] text-[rgba(var(--foreground-secondary-rgb))] hover:bg-[rgba(var(--border-secondary-rgb))]'}`}>
-                        None
-                    </button>
-                    <button onClick={() => setEditedProfile(p => ({...p, verificationType: 'user'}))} className={`flex-1 py-2 text-sm font-bold rounded-full transition-colors ${editedProfile.verificationType === 'user' ? 'bg-[rgba(var(--accent-rgb))] text-[rgba(var(--foreground-on-accent-rgb))] ring-2 ring-[rgba(var(--accent-rgb))]' : 'bg-[rgba(var(--background-tertiary-rgb))] text-[rgba(var(--foreground-secondary-rgb))] hover:bg-[rgba(var(--border-secondary-rgb))]'}`}>
-                        User
-                    </button>
-                     <button onClick={() => setEditedProfile(p => ({...p, verificationType: 'business'}))} className={`flex-1 py-2 text-sm font-bold rounded-full transition-colors ${editedProfile.verificationType === 'business' ? 'bg-[rgba(var(--warning-rgb))] text-black ring-2 ring-[rgba(var(--warning-rgb))]' : 'bg-[rgba(var(--background-tertiary-rgb))] text-[rgba(var(--foreground-secondary-rgb))] hover:bg-[rgba(var(--border-secondary-rgb))]'}`}>
-                        Business
-                    </button>
-                </div>
+            <div className="p-3 border border-[rgba(var(--border-secondary-rgb))] rounded-md">
+              <label className="text-xs text-[rgba(var(--foreground-secondary-rgb))] mb-2 block">Verification Type</label>
+              <div className="flex justify-between space-x-2">
+                <button onClick={() => setEditedProfile(p => ({ ...p, verificationType: 'none' }))} className={`flex-1 py-2 text-sm font-bold rounded-full transition-colors ${editedProfile.verificationType === 'none' ? 'bg-[rgba(var(--foreground-secondary-rgb))] text-[rgba(var(--background-primary-rgb))] ring-2 ring-[rgba(var(--foreground-secondary-rgb))]' : 'bg-[rgba(var(--background-tertiary-rgb))] text-[rgba(var(--foreground-secondary-rgb))] hover:bg-[rgba(var(--border-secondary-rgb))]'}`}>
+                  None
+                </button>
+                <button onClick={() => setEditedProfile(p => ({ ...p, verificationType: 'user' }))} className={`flex-1 py-2 text-sm font-bold rounded-full transition-colors ${editedProfile.verificationType === 'user' ? 'bg-[rgba(var(--accent-rgb))] text-[rgba(var(--foreground-on-accent-rgb))] ring-2 ring-[rgba(var(--accent-rgb))]' : 'bg-[rgba(var(--background-tertiary-rgb))] text-[rgba(var(--foreground-secondary-rgb))] hover:bg-[rgba(var(--border-secondary-rgb))]'}`}>
+                  User
+                </button>
+                <button onClick={() => setEditedProfile(p => ({ ...p, verificationType: 'business' }))} className={`flex-1 py-2 text-sm font-bold rounded-full transition-colors ${editedProfile.verificationType === 'business' ? 'bg-[rgba(var(--warning-rgb))] text-black ring-2 ring-[rgba(var(--warning-rgb))]' : 'bg-[rgba(var(--background-tertiary-rgb))] text-[rgba(var(--foreground-secondary-rgb))] hover:bg-[rgba(var(--border-secondary-rgb))]'}`}>
+                  Business
+                </button>
+              </div>
             </div>
           </div>
         </div>

@@ -24,4 +24,4 @@ const TagBadge: React.FC<TagBadgeProps> = ({ tagName, onClick }) => {
   );
 };
 
-export default TagBadge;
+export default React.memo(TagBadge);

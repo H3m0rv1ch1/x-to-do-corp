@@ -20,6 +20,24 @@ export default defineConfig(({ mode }) => {
       alias: {
         '@': path.resolve(__dirname, './src'),
       }
+    },
+    build: {
+      // Optimize build output
+      target: 'esnext',
+      minify: 'esbuild', // Use esbuild (included with Vite)
+      rollupOptions: {
+        output: {
+          // Manual code splitting for better caching
+          manualChunks: {
+            // Vendor chunks
+            'react-vendor': ['react', 'react-dom'],
+            'supabase': ['@supabase/supabase-js'],
+            'icons': ['react-icons'],
+          }
+        }
+      },
+      // Chunk size warning limit
+      chunkSizeWarningLimit: 1000,
     }
   };
 });

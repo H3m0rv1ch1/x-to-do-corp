@@ -7,6 +7,8 @@ import { linkify } from '@/utils/textParser';
 import { Tooltip, TagBadge, DatePicker, RecurrencePicker, ReminderPicker, PriorityPicker } from '@/components/ui';
 import PortalMenu from '@/components/ui/PortalMenu';
 import useClickOutside from '@/hooks/useClickOutside';
+import { useAuth } from '@/hooks/useAuth';
+import { uploadImage } from '@/services/imageUpload';
 
 interface TodoItemProps {
   todo: Todo;
@@ -21,16 +23,17 @@ interface TodoItemProps {
 }
 
 const priorityStyles: Record<Priority, string> = {
-    high: 'bg-[rgba(var(--danger-rgb))]',
-    medium: 'bg-[rgba(var(--warning-rgb))]',
-    low: 'bg-[rgba(var(--accent-rgb))]',
-    none: 'bg-transparent',
+  high: 'bg-[rgba(var(--danger-rgb))]',
+  medium: 'bg-[rgba(var(--warning-rgb))]',
+  low: 'bg-[rgba(var(--accent-rgb))]',
+  none: 'bg-transparent',
 };
 
 // Priority icon color removed as the priority button/picker is no longer rendered.
 
 
 const TodoItem: React.FC<TodoItemProps> = ({ todo, onToggleTodo, onDeleteTodo, onEditTodo, onToggleImportant, onToggleSubtask, onEditSubtask, autoEdit, onOpenComposerEdit }) => {
+  const { user } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [editText, setEditText] = useState(todo.text);
   const [isMounted, setIsMounted] = useState(false);
@@ -45,8 +48,8 @@ const TodoItem: React.FC<TodoItemProps> = ({ todo, onToggleTodo, onDeleteTodo, o
   const [currentTag, setCurrentTag] = useState('');
   const [showTagInput, setShowTagInput] = useState(false);
 
-  const { 
-    startFocusSession, 
+  const {
+    startFocusSession,
     openFocusModal,
     focusSession,
     openLightbox,
@@ -76,7 +79,7 @@ const TodoItem: React.FC<TodoItemProps> = ({ todo, onToggleTodo, onDeleteTodo, o
 
   const uniqueId = useId();
   const imageUploadId = `todo-item-image-${uniqueId}`;
-  
+
 
   useEffect(() => {
     const timeout = setTimeout(() => setIsMounted(true), 10);
@@ -96,7 +99,7 @@ const TodoItem: React.FC<TodoItemProps> = ({ todo, onToggleTodo, onDeleteTodo, o
 
   useEffect(() => {
     if (editingSubtask && subtaskInputRef.current) {
-        subtaskInputRef.current.focus();
+      subtaskInputRef.current.focus();
     }
   }, [editingSubtask]);
 
@@ -132,23 +135,23 @@ const TodoItem: React.FC<TodoItemProps> = ({ todo, onToggleTodo, onDeleteTodo, o
       handleCancel();
     }
   };
-  
+
   const handleEditSubtaskClick = (subtask: Subtask) => {
     setEditingSubtask({ id: subtask.id, text: subtask.text });
   };
 
   const handleSaveSubtask = () => {
     if (editingSubtask && editingSubtask.text.trim()) {
-        onEditSubtask(todo.id, editingSubtask.id, editingSubtask.text.trim());
+      onEditSubtask(todo.id, editingSubtask.id, editingSubtask.text.trim());
     }
     setEditingSubtask(null);
   };
-  
+
   const handleSubtaskKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') handleSaveSubtask();
     if (e.key === 'Escape') setEditingSubtask(null);
   };
-  
+
   const { isOverdue, isToday, formattedDueDate } = useMemo(() => {
     const targetDate = isEditing ? dueDate : todo.dueDate;
     if (!targetDate) {
@@ -163,7 +166,7 @@ const TodoItem: React.FC<TodoItemProps> = ({ todo, onToggleTodo, onDeleteTodo, o
     return { isOverdue: isTaskOverdue && !todo.completed, isToday: isTaskToday && !todo.completed, formattedDueDate: formatted };
   }, [todo.completed, dueDate]);
 
-  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     setImageError(null);
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
@@ -173,11 +176,26 @@ const TodoItem: React.FC<TodoItemProps> = ({ todo, onToggleTodo, onDeleteTodo, o
         e.target.value = '';
         return;
       }
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImageUrl(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+
+      if (!user?.id) {
+        setImageError('You must be logged in to upload images.');
+        return;
+      }
+
+      try {
+        setImageError('Compressing and uploading...');
+
+        // Compress and upload to Supabase Storage
+        const publicUrl = await uploadImage(file, user.id, 'todos');
+
+        // Set the URL
+        setImageUrl(publicUrl);
+        setImageError(null);
+      } catch (error: any) {
+        console.error('Image upload failed:', error);
+        setImageError(error.message || 'Failed to upload image.');
+        e.target.value = '';
+      }
     }
   };
 
@@ -221,11 +239,10 @@ const TodoItem: React.FC<TodoItemProps> = ({ todo, onToggleTodo, onDeleteTodo, o
       <div className="flex items-start p-4">
         <button
           onClick={() => onToggleTodo(todo.id)}
-          className={`w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 mr-4 mt-1 transition-colors duration-200 ${
-            todo.completed
-              ? 'border-[rgba(var(--accent-rgb))] bg-[rgba(var(--accent-rgb))]'
-              : 'border-[rgba(var(--border-secondary-rgb))] group-hover:border-[rgba(var(--accent-rgb))]'
-          }`}
+          className={`w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 mr-4 mt-1 transition-colors duration-200 ${todo.completed
+            ? 'border-[rgba(var(--accent-rgb))] bg-[rgba(var(--accent-rgb))]'
+            : 'border-[rgba(var(--border-secondary-rgb))] group-hover:border-[rgba(var(--accent-rgb))]'
+            }`}
           aria-label={todo.completed ? `Mark as not complete: ${todo.text}` : `Mark as complete: ${todo.text}`}
         >
           {todo.completed && <HiCheck className="w-4 h-4 text-white" />}
@@ -243,14 +260,14 @@ const TodoItem: React.FC<TodoItemProps> = ({ todo, onToggleTodo, onDeleteTodo, o
                 className="w-full bg-transparent text-base text-[rgba(var(--foreground-primary-rgb))] focus:outline-none resize-none"
               />
               <div className="flex items-center justify-end space-x-3 pt-2 border-t border-[rgba(var(--border-primary-rgb))] mt-2">
-                <button 
+                <button
                   type="button"
                   onClick={handleSave}
                   className="bg-[rgba(var(--button-primary-bg-rgb))] text-[rgba(var(--button-primary-text-rgb))] font-bold px-4 py-1.5 rounded-full hover:opacity-90 transition-opacity"
                 >
                   Save
                 </button>
-                <button 
+                <button
                   type="button"
                   onClick={handleCancel}
                   className="border border-[rgba(var(--border-secondary-rgb))] text-[rgba(var(--foreground-primary-rgb))] px-4 py-1.5 rounded-full hover:bg-[rgba(var(--foreground-primary-rgb),0.05)] transition-colors"
@@ -264,7 +281,7 @@ const TodoItem: React.FC<TodoItemProps> = ({ todo, onToggleTodo, onDeleteTodo, o
               <p className={`text-[15px] leading-5 break-words ${todo.completed ? 'text-[rgba(var(--foreground-secondary-rgb))] line-through' : 'text-[rgba(var(--foreground-primary-rgb))]'}`}>
                 {linkify(todo.text)}
               </p>
-              
+
               {todo.imageUrl && (
                 <div className="mt-3">
                   <img
@@ -278,11 +295,10 @@ const TodoItem: React.FC<TodoItemProps> = ({ todo, onToggleTodo, onDeleteTodo, o
 
               <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
                 {formattedDueDate && (
-                  <div className={`flex items-center space-x-1.5 text-[13px] ${
-                    isOverdue ? 'text-[rgba(var(--danger-rgb))]' : isToday ? 'text-[rgba(var(--accent-rgb))]' : 'text-[rgba(var(--foreground-secondary-rgb))]'
-                  }`}>
-                      <HiCalendar className="w-3.5 h-3.5" />
-                      <span>{isToday ? 'Today' : formattedDueDate}</span>
+                  <div className={`flex items-center space-x-1.5 text-[13px] ${isOverdue ? 'text-[rgba(var(--danger-rgb))]' : isToday ? 'text-[rgba(var(--accent-rgb))]' : 'text-[rgba(var(--foreground-secondary-rgb))]'
+                    }`}>
+                    <HiCalendar className="w-3.5 h-3.5" />
+                    <span>{isToday ? 'Today' : formattedDueDate}</span>
                   </div>
                 )}
                 {focusSession.todoId === todo.id && (
@@ -292,7 +308,7 @@ const TodoItem: React.FC<TodoItemProps> = ({ todo, onToggleTodo, onDeleteTodo, o
                     className={`flex items-center space-x-1.5 text-[13px] px-2 py-0.5 rounded-full transition-colors ${focusSession.isActive ? 'bg-[rgba(var(--accent-rgb),0.18)] text-[rgba(var(--accent-rgb))]' : 'bg-[rgba(var(--background-tertiary-rgb))] text-[rgba(var(--foreground-secondary-rgb))]'}`}
                     title={focusSession.isActive ? 'Focus running' : 'Focus paused'}
                   >
-                    {focusSession.isActive ? <HiPlay className="w-3.5 h-3.5"/> : <HiPause className="w-3.5 h-3.5"/>}
+                    {focusSession.isActive ? <HiPlay className="w-3.5 h-3.5" /> : <HiPause className="w-3.5 h-3.5" />}
                     <span>{formatTime(focusSession.timeRemaining)}</span>
                     {focusSession.cycles > 0 && <span className="opacity-70">• Cycle {focusSession.cycles}</span>}
                   </button>
@@ -300,56 +316,55 @@ const TodoItem: React.FC<TodoItemProps> = ({ todo, onToggleTodo, onDeleteTodo, o
                 {todo.tags.length > 0 && (
                   <div className="flex items-center flex-wrap gap-1.5">
                     {todo.tags.map(tag => (
-                      <TagBadge key={tag} tagName={tag} onClick={(e) => { e.stopPropagation(); handleTagClick(tag); }}/>
+                      <TagBadge key={tag} tagName={tag} onClick={(e) => { e.stopPropagation(); handleTagClick(tag); }} />
                     ))}
                   </div>
                 )}
               </div>
-              
+
               {todo.subtasks && todo.subtasks.length > 0 && (
                 <div className="mt-3 pl-2 border-l-2 border-[rgba(var(--border-secondary-rgb))] space-y-2">
                   {todo.subtasks.map(subtask => (
                     <div key={subtask.id} className="flex items-center group/subtask">
                       <button
                         onClick={() => onToggleSubtask(todo.id, subtask.id)}
-                        className={`w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 mr-3 transition-colors duration-200 ${
-                          subtask.completed
-                            ? 'border-[rgba(var(--accent-rgb))] bg-[rgba(var(--accent-rgb))]'
-                            : 'border-[rgba(var(--border-secondary-rgb))] group-hover/subtask:border-[rgba(var(--accent-rgb))]'
-                        }`}
+                        className={`w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 mr-3 transition-colors duration-200 ${subtask.completed
+                          ? 'border-[rgba(var(--accent-rgb))] bg-[rgba(var(--accent-rgb))]'
+                          : 'border-[rgba(var(--border-secondary-rgb))] group-hover/subtask:border-[rgba(var(--accent-rgb))]'
+                          }`}
                         aria-label={subtask.completed ? `Mark subtask as not complete: ${subtask.text}` : `Mark subtask as complete: ${subtask.text}`}
                       >
                         {subtask.completed && <HiCheck className="w-3 h-3 text-white" />}
                       </button>
-                      
+
                       <div className="flex-grow">
                         {editingSubtask?.id === subtask.id ? (
-                           <input
+                          <input
                             ref={subtaskInputRef}
                             type="text"
                             value={editingSubtask.text}
-                            onChange={(e) => setEditingSubtask({...editingSubtask, text: e.target.value})}
+                            onChange={(e) => setEditingSubtask({ ...editingSubtask, text: e.target.value })}
                             onKeyDown={handleSubtaskKeyDown}
                             onBlur={handleSaveSubtask}
                             className="w-full bg-transparent text-sm text-[rgba(var(--foreground-primary-rgb))] focus:outline-none"
-                           />
+                          />
                         ) : (
-                           <span
+                          <span
                             onClick={() => handleEditSubtaskClick(subtask)}
                             className={`text-sm cursor-pointer ${subtask.completed ? 'line-through text-[rgba(var(--foreground-secondary-rgb))]' : ''}`}
-                           >
+                          >
                             {subtask.text}
-                           </span>
+                          </span>
                         )}
                       </div>
 
                       {!subtask.completed && !isEditing && (
                         <div className="ml-2 opacity-0 group-hover/subtask:opacity-100 transition-opacity">
-                            <Tooltip text="Edit subtask">
-                                <button onClick={() => handleEditSubtaskClick(subtask)} className="p-1 rounded-full hover:bg-[rgba(var(--background-tertiary-rgb))] text-[rgba(var(--foreground-secondary-rgb))]">
-                                    <HiPencil className="w-4 h-4" />
-                                </button>
-                            </Tooltip>
+                          <Tooltip text="Edit subtask">
+                            <button onClick={() => handleEditSubtaskClick(subtask)} className="p-1 rounded-full hover:bg-[rgba(var(--background-tertiary-rgb))] text-[rgba(var(--foreground-secondary-rgb))]">
+                              <HiPencil className="w-4 h-4" />
+                            </button>
+                          </Tooltip>
                         </div>
                       )}
                     </div>
@@ -395,13 +410,13 @@ const TodoItem: React.FC<TodoItemProps> = ({ todo, onToggleTodo, onDeleteTodo, o
                 {!todo.completed && (
                   <button
                     type="button"
-                    onClick={() => { 
+                    onClick={() => {
                       if (focusSession.todoId === todo.id && focusSession.isActive) {
                         openFocusModal();
                       } else {
                         startFocusSession(todo.id);
                       }
-                      setIsMoreOptionsOpen(false); 
+                      setIsMoreOptionsOpen(false);
                     }}
                     className="w-full text-left flex items-center space-x-3 px-3 py-2 text-sm text-[rgba(var(--foreground-primary-rgb))] hover:bg-[rgba(var(--foreground-primary-rgb),0.05)] transition-colors"
                   >
@@ -426,4 +441,4 @@ const TodoItem: React.FC<TodoItemProps> = ({ todo, onToggleTodo, onDeleteTodo, o
   );
 };
 
-export default TodoItem;
+export default React.memo(TodoItem);

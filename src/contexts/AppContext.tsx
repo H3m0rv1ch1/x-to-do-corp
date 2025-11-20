@@ -38,131 +38,131 @@ export interface FocusSettings {
 export type SessionMode = 'focus' | 'shortBreak' | 'longBreak';
 
 export interface FocusSessionState {
-  todoId: string | null;
-  isActive: boolean;
-  mode: SessionMode;
-  timeRemaining: number;
-  initialDuration: number;
-  cycles: number;
+    todoId: string | null;
+    isActive: boolean;
+    mode: SessionMode;
+    timeRemaining: number;
+    initialDuration: number;
+    cycles: number;
 }
 
 // Fix: Define and export AppContextType interface.
 export interface AppContextType {
-  // Todos
-  isLoading: boolean;
-  todos: Todo[];
-  filteredTodos: Todo[];
-  filter: string;
-  setFilter: (filter: string) => void;
-  sortOrder: SortOrder;
-  setSortOrder: (order: SortOrder) => void;
-  searchQuery: string;
-  setSearchQuery: (query: string) => void;
-  activeTag: string | null;
-  setActiveTag: (tag: string | null) => void;
-  handleTagClick: (tag: string) => void;
-  clearActiveTag: () => void;
-  tagColors: TagColorMap;
-  handleAddTodo: (todoData: { text: string; imageUrl: string | null; dueDate: string | null; priority: Priority; subtasks: string[], tags: string[], recurrenceRule: { type: RecurrenceType } | null, reminderOffset: number | null }) => Promise<string>;
-  handleToggleTodo: (id: string) => void;
-  handleDeleteTodo: (id: string) => void;
-  handleEditTodo: (id: string, newText: string) => void;
-  handleToggleImportant: (id: string) => void;
-  handleToggleSubtask: (todoId: string, subtaskId: string) => void;
-  handleEditSubtask: (todoId: string, subtaskId: string, newText: string) => void;
-  handleSetPriority: (id: string, priority: Priority) => void;
-  handleUpdateTodo: (id: string, updates: Partial<Todo>) => void;
-  handleClearCompletedTodos: () => void;
+    // Todos
+    isLoading: boolean;
+    todos: Todo[];
+    filteredTodos: Todo[];
+    filter: string;
+    setFilter: (filter: string) => void;
+    sortOrder: SortOrder;
+    setSortOrder: (order: SortOrder) => void;
+    searchQuery: string;
+    setSearchQuery: (query: string) => void;
+    activeTag: string | null;
+    setActiveTag: (tag: string | null) => void;
+    handleTagClick: (tag: string) => void;
+    clearActiveTag: () => void;
+    tagColors: TagColorMap;
+    handleAddTodo: (todoData: { text: string; imageUrl: string | null; dueDate: string | null; priority: Priority; subtasks: string[], tags: string[], recurrenceRule: { type: RecurrenceType } | null, reminderOffset: number | null }) => Promise<string>;
+    handleToggleTodo: (id: string) => void;
+    handleDeleteTodo: (id: string) => void;
+    handleEditTodo: (id: string, newText: string) => void;
+    handleToggleImportant: (id: string) => void;
+    handleToggleSubtask: (todoId: string, subtaskId: string) => void;
+    handleEditSubtask: (todoId: string, subtaskId: string, newText: string) => void;
+    handleSetPriority: (id: string, priority: Priority) => void;
+    handleUpdateTodo: (id: string, updates: Partial<Todo>) => void;
+    handleClearCompletedTodos: () => void;
 
-  // Notes
-  notes: Note[];
-  filteredNotes: Note[];
-  notesSearchQuery: string;
-  setNotesSearchQuery: (query: string) => void;
-  notesSortOrder: NotesSortOrder;
-  setNotesSortOrder: (order: NotesSortOrder) => void;
-  selectedNoteId: string | null;
-  setSelectedNoteId: (id: string | null) => void;
-  handleAddNote: (noteData: { title: string, content: string }) => Promise<string>;
-  handleUpdateNote: (note: Note) => void;
-  handleDeleteNote: (id: string) => void;
-  handlePinNote: (id: string) => void;
-  handleDeleteAllNotes: () => void;
+    // Notes
+    notes: Note[];
+    filteredNotes: Note[];
+    notesSearchQuery: string;
+    setNotesSearchQuery: (query: string) => void;
+    notesSortOrder: NotesSortOrder;
+    setNotesSortOrder: (order: NotesSortOrder) => void;
+    selectedNoteId: string | null;
+    setSelectedNoteId: (id: string | null) => void;
+    handleAddNote: (noteData: { title: string, content: string }) => Promise<string>;
+    handleUpdateNote: (note: Note) => void;
+    handleDeleteNote: (id: string) => void;
+    handlePinNote: (id: string) => void;
+    handleDeleteAllNotes: () => void;
 
-  // User Profile
-  userProfile: UserProfile;
-  handleSaveProfile: (profile: UserProfile) => void;
+    // User Profile
+    userProfile: UserProfile;
+    handleSaveProfile: (profile: UserProfile) => void;
 
-  // Navigation
-  page: Page;
-  setPage: (page: Page) => void;
-  pageTitle: string;
+    // Navigation
+    page: Page;
+    setPage: (page: Page) => void;
+    pageTitle: string;
 
-  // Modals
-  isAddTaskModalOpen: boolean;
-  openAddTaskModal: () => void;
-  closeAddTaskModal: () => void;
-  confirmationState: { isOpen: boolean; title: string; message: string; onConfirm: () => void; };
-  showConfirmation: (title: string, message: string, onConfirm: () => void) => void;
-  hideConfirmation: () => void;
-  lightboxImageUrl: string | null;
-  openLightbox: (url: string) => void;
-  closeLightbox: () => void;
-  dayDetail: { date: Date, tasks: Todo[], notes: Note[] } | null;
-  openDayDetailModal: (date: Date, tasks: Todo[], notes: Note[]) => void;
-  closeDayDetailModal: () => void;
-  isFocusModalOpen: boolean;
-  openFocusModal: () => void;
-  closeFocusModal: () => void;
-  isShortcutsModalOpen: boolean;
-  openShortcutsModal: () => void;
-  closeShortcutsModal: () => void;
-  
-  // Toasts
-  toasts: Toast[];
-  addToast: (message: string, type: 'success' | 'error' | 'info') => void;
-  removeToast: (id: string) => void;
+    // Modals
+    isAddTaskModalOpen: boolean;
+    openAddTaskModal: () => void;
+    closeAddTaskModal: () => void;
+    confirmationState: { isOpen: boolean; title: string; message: string; onConfirm: () => void; };
+    showConfirmation: (title: string, message: string, onConfirm: () => void) => void;
+    hideConfirmation: () => void;
+    lightboxImageUrl: string | null;
+    openLightbox: (url: string) => void;
+    closeLightbox: () => void;
+    dayDetail: { date: Date, tasks: Todo[], notes: Note[] } | null;
+    openDayDetailModal: (date: Date, tasks: Todo[], notes: Note[]) => void;
+    closeDayDetailModal: () => void;
+    isFocusModalOpen: boolean;
+    openFocusModal: () => void;
+    closeFocusModal: () => void;
+    isShortcutsModalOpen: boolean;
+    openShortcutsModal: () => void;
+    closeShortcutsModal: () => void;
 
-  // Achievements
-  allAchievements: Achievement[];
-  unlockedAchievements: UnlockedAchievement[];
+    // Toasts
+    toasts: Toast[];
+    addToast: (message: string, type: 'success' | 'error' | 'info') => void;
+    removeToast: (id: string) => void;
 
-  // Notifications
-  notificationPermission: NotificationPermission;
-  requestNotificationPermission: () => void;
+    // Achievements
+    allAchievements: Achievement[];
+    unlockedAchievements: UnlockedAchievement[];
 
-  // Settings
-  theme: 'light' | 'dark';
-  setTheme: (theme: 'light' | 'dark') => void;
-  accent: string;
-  setAccent: (accent: string) => void;
-  handleExportData: () => void;
-  handleImportData: (file: File) => void;
-  handleDeleteAllData: () => void;
+    // Notifications
+    notificationPermission: NotificationPermission;
+    requestNotificationPermission: () => void;
 
-  // Focus Mode
-  focusSettings: FocusSettings;
-  updateFocusSettings: (settings: Partial<FocusSettings>) => void;
-  focusSession: FocusSessionState;
-  activeFocusTodo: Todo | null;
-  startFocusSession: (todoId: string) => void;
-  changeFocusMode: (mode: SessionMode) => void;
-  toggleFocusSessionActive: () => void;
-  stopFocusSession: () => void;
+    // Settings
+    theme: 'light' | 'dark';
+    setTheme: (theme: 'light' | 'dark') => void;
+    accent: string;
+    setAccent: (accent: string) => void;
+    handleExportData: () => void;
+    handleImportData: (file: File) => void;
+    handleDeleteAllData: () => void;
+
+    // Focus Mode
+    focusSettings: FocusSettings;
+    updateFocusSettings: (settings: Partial<FocusSettings>) => void;
+    focusSession: FocusSessionState;
+    activeFocusTodo: Todo | null;
+    startFocusSession: (todoId: string) => void;
+    changeFocusMode: (mode: SessionMode) => void;
+    toggleFocusSessionActive: () => void;
+    stopFocusSession: () => void;
 }
 
 // Fix: Create and export AppContext
 export const AppContext = createContext<AppContextType | null>(null);
 
 const defaultUserProfile: UserProfile = {
-  name: 'Guest',
-  username: '@guest',
-  bio: 'A journey of a thousand miles begins with a single step.',
-  avatarUrl: null,
-  bannerUrl: null,
-  verificationType: 'none',
-  organization: undefined,
-  organizationAvatarUrl: undefined
+    name: 'Guest',
+    username: '@guest',
+    bio: 'A journey of a thousand miles begins with a single step.',
+    avatarUrl: null,
+    bannerUrl: null,
+    verificationType: 'none',
+    organization: undefined,
+    organizationAvatarUrl: undefined
 };
 
 const defaultFocusSettings: FocusSettings = {
@@ -194,7 +194,7 @@ async function getAppIconPng(): Promise<string> {
     try {
         const cached = localStorage.getItem(CACHE_KEY);
         if (cached) return cached;
-    } catch {}
+    } catch { }
     try {
         const svgUrl = '/favicon.svg';
         const svgText = await fetch(svgUrl).then(r => r.text());
@@ -217,7 +217,7 @@ async function getAppIconPng(): Promise<string> {
         ctx.drawImage(img, 0, 0, size, size);
         const pngDataUrl = canvas.toDataURL('image/png');
         URL.revokeObjectURL(objUrl);
-        try { localStorage.setItem(CACHE_KEY, pngDataUrl); } catch {}
+        try { localStorage.setItem(CACHE_KEY, pngDataUrl); } catch { }
         return pngDataUrl;
     } catch {
         // Fallback to the original SVG if conversion fails
@@ -243,7 +243,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const [activeTag, setActiveTag] = useState<string | null>(null);
     const [tagColors, setTagColors] = useState<TagColorMap>({});
     const [isAddTaskModalOpen, setIsAddTaskModalOpen] = useState(false);
-    const [confirmationState, setConfirmationState] = useState({ isOpen: false, title: '', message: '', onConfirm: () => {} });
+    const [confirmationState, setConfirmationState] = useState({ isOpen: false, title: '', message: '', onConfirm: () => { } });
     const [lightboxImageUrl, setLightboxImageUrl] = useState<string | null>(null);
     const [toasts, setToasts] = useState<Toast[]>([]);
     const [dayDetail, setDayDetail] = useState<{ date: Date, tasks: Todo[], notes: Note[] } | null>(null);
@@ -331,7 +331,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                     // Fix: Ensure loaded focus settings are always a valid object, merging with defaults.
                     // This prevents the state from becoming corrupted with non-object types from the database,
                     // which could lead to errors when spreading the settings object later on.
-                    db.getValue('focusSettings').then(v => ({ ...defaultFocusSettings, ...(v?.value || {})}))
+                    db.getValue('focusSettings').then(v => ({ ...defaultFocusSettings, ...(v?.value || {}) }))
                 ]);
                 setTodos(loadedTodos);
                 setNotes(loadedNotes);
@@ -384,8 +384,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                     setUserProfile(remoteProfile);
                     await db.saveUserProfile(remoteProfile);
                 } else {
-                    // seed with local profile if none exists
-                    await cloud.upsertProfile(user.id, userProfile);
+                    // seed with local profile if none exists, but prefer Auth user name over "Guest"
+                    const initialProfile = {
+                        ...userProfile,
+                        name: user.name && user.name !== 'User' ? user.name : userProfile.name
+                    };
+                    // If we have a name from Auth but profile was default, update state too
+                    if (initialProfile.name !== userProfile.name) {
+                        setUserProfile(initialProfile);
+                    }
+                    await cloud.upsertProfile(user.id, initialProfile);
                 }
             } catch (err) {
                 console.error('Profile sync failed:', err);
@@ -395,11 +403,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         void run();
         // Only depend on auth state and user id; avoid re-pushing on profile edits here
         // Profile saves are handled in handleSaveProfile
-    }, [isAuthenticated, user?.id]);
+    }, [isAuthenticated, user?.id, user?.name]);
 
     // Derived State: pageTitle
     const pageTitle = useMemo(() => {
-        switch(page) {
+        switch (page) {
             case 'home': return 'Home';
             case 'profile': return 'Profile';
             case 'notes': return 'Notes';
@@ -413,7 +421,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             default: return 'X To-Do';
         }
     }, [page]);
-    
+
     // Toast notifications
     const addToast = useCallback((message: string, type: 'success' | 'error' | 'info' = 'info') => {
         const id = crypto.randomUUID();
@@ -441,7 +449,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     // Todos logic
     const handleAddTodo = useCallback(async (todoData: { text: string; imageUrl: string | null; dueDate: string | null; priority: Priority; subtasks: string[], tags: string[], recurrenceRule: { type: RecurrenceType } | null, reminderOffset: number | null }): Promise<string> => {
         let { text, tags, dueDate } = { ...todoData };
-        
+
         const tagParseResult = parseTextForTags(text);
         text = tagParseResult.cleanedText;
         tags = [...new Set([...tags, ...tagParseResult.tags])];
@@ -466,12 +474,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             isImportant: false,
             createdAt: new Date().toISOString(),
         };
-        
+
         const newTodos = [...todos, newTodo];
         setTodos(newTodos);
         await db.putTodo(newTodo);
         if (isAuthenticated && user?.id && isSupabaseConfigured()) {
-            try { await cloud.upsertTodo(user.id, newTodo); } catch {}
+            try { await cloud.upsertTodo(user.id, newTodo); } catch { }
         }
         addToast('Task added!', 'success');
         checkForAchievements({ todos: newTodos, notes });
@@ -519,11 +527,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             newTodos.push(newRecurringTodo);
             await db.putTodo(newRecurringTodo);
         }
-        
+
         setTodos(newTodos);
         await db.putTodo(updatedTodo);
         if (isAuthenticated && user?.id && isSupabaseConfigured()) {
-            try { await cloud.upsertTodo(user.id, updatedTodo); } catch {}
+            try { await cloud.upsertTodo(user.id, updatedTodo); } catch { }
         }
         checkForAchievements({ todos: newTodos, notes });
     }, [todos, notes, checkForAchievements]);
@@ -537,7 +545,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 setTodos(newTodos);
                 await db.deleteTodo(id);
                 if (isAuthenticated && user?.id && isSupabaseConfigured()) {
-                    try { await cloud.deleteTodoRemote(user.id, id); } catch {}
+                    try { await cloud.deleteTodoRemote(user.id, id); } catch { }
                 }
                 addToast('Task deleted.', 'info');
             }
@@ -549,16 +557,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setTodos(newTodos);
         await db.putTodo(newTodos.find(t => t.id === id)!);
         if (isAuthenticated && user?.id && isSupabaseConfigured()) {
-            try { await cloud.upsertTodo(user.id, newTodos.find(t => t.id === id)!); } catch {}
+            try { await cloud.upsertTodo(user.id, newTodos.find(t => t.id === id)!); } catch { }
         }
     }, [todos]);
-    
+
     const handleToggleImportant = useCallback(async (id: string) => {
         const newTodos = todos.map(t => t.id === id ? { ...t, isImportant: !t.isImportant } : t);
         setTodos(newTodos);
         await db.putTodo(newTodos.find(t => t.id === id)!);
         if (isAuthenticated && user?.id) {
-            try { await cloud.upsertTodo(user.id, newTodos.find(t => t.id === id)!); } catch {}
+            try { await cloud.upsertTodo(user.id, newTodos.find(t => t.id === id)!); } catch { }
         }
         checkForAchievements({ todos: newTodos, notes });
     }, [todos, notes, checkForAchievements]);
@@ -577,7 +585,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         const updated = newTodos.find(t => t.id === id)!;
         await db.putTodo(updated);
         if (isAuthenticated && user?.id) {
-            try { await cloud.upsertTodo(user.id, updated); } catch {}
+            try { await cloud.upsertTodo(user.id, updated); } catch { }
         }
         addToast('Task updated.', 'success');
         checkForAchievements({ todos: newTodos, notes });
@@ -591,11 +599,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             setTodos(newTodos);
             await db.putTodo(todo);
             if (isAuthenticated && user?.id && isSupabaseConfigured()) {
-                try { await cloud.upsertTodo(user.id, todo); } catch {}
+                try { await cloud.upsertTodo(user.id, todo); } catch { }
             }
         }
     }, [todos]);
-    
+
     const handleEditSubtask = useCallback(async (todoId: string, subtaskId: string, newText: string) => {
         const newTodos = [...todos];
         const todo = newTodos.find(t => t.id === todoId);
@@ -604,7 +612,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             setTodos(newTodos);
             await db.putTodo(todo);
             if (isAuthenticated && user?.id) {
-                try { await cloud.upsertTodo(user.id, todo); } catch {}
+                try { await cloud.upsertTodo(user.id, todo); } catch { }
             }
         }
     }, [todos]);
@@ -620,43 +628,43 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 for (const todo of completedTodos) {
                     await db.deleteTodo(todo.id);
                     if (isAuthenticated && user?.id) {
-                        try { await cloud.deleteTodoRemote(user.id, todo.id); } catch {}
+                        try { await cloud.deleteTodoRemote(user.id, todo.id); } catch { }
                     }
                 }
                 addToast('Completed tasks cleared.', 'info');
             }
         );
     }, [todos, addToast]);
-    
+
     // Tag management
     const assignColorToTag = useCallback((tagName: string, currentColors: TagColorMap) => {
-      const existingTags = Object.keys(currentColors);
-      const colorIndex = existingTags.length % TAG_COLORS_PALETTE.length;
-      return TAG_COLORS_PALETTE[colorIndex];
+        const existingTags = Object.keys(currentColors);
+        const colorIndex = existingTags.length % TAG_COLORS_PALETTE.length;
+        return TAG_COLORS_PALETTE[colorIndex];
     }, []);
 
     useEffect(() => {
-      const allTags = new Set(todos.flatMap(t => t.tags));
-      let updated = false;
-      const newTagColors = { ...tagColors };
-      allTags.forEach(tag => {
-        if (!newTagColors[tag]) {
-          newTagColors[tag] = assignColorToTag(tag, newTagColors);
-          updated = true;
+        const allTags = new Set(todos.flatMap(t => t.tags));
+        let updated = false;
+        const newTagColors = { ...tagColors };
+        allTags.forEach(tag => {
+            if (!newTagColors[tag]) {
+                newTagColors[tag] = assignColorToTag(tag, newTagColors);
+                updated = true;
+            }
+        });
+        if (updated) {
+            setTagColors(newTagColors);
+            db.putValue('tagColors', newTagColors);
         }
-      });
-      if (updated) {
-        setTagColors(newTagColors);
-        db.putValue('tagColors', newTagColors);
-      }
     }, [todos, tagColors, assignColorToTag]);
 
     const handleTagClick = (tag: string) => {
-      setActiveTag(tag);
-      setPage('home');
-      setFilter('all');
+        setActiveTag(tag);
+        setPage('home');
+        setFilter('all');
     };
-  
+
     const clearActiveTag = () => setActiveTag(null);
 
     // Filtered & Sorted Todos
@@ -673,7 +681,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             const lowercasedQuery = searchQuery.toLowerCase();
             tempTodos = tempTodos.filter(todo => todo.text.toLowerCase().includes(lowercasedQuery));
         }
-        
+
         // Filter by category
         switch (filter) {
             case 'pending':
@@ -739,7 +747,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setNotes(newNotes);
         await db.putNote({ ...updatedNote, updatedAt: new Date().toISOString() });
     }, [notes]);
-    
+
     const handleDeleteNote = useCallback((id: string) => {
         showConfirmation(
             'Delete Note?',
@@ -764,17 +772,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             }
         );
     }, [addToast]);
-    
+
     const handlePinNote = useCallback(async (id: string) => {
         const newNotes = notes.map(n => n.id === id ? { ...n, isPinned: !n.isPinned } : n);
         setNotes(newNotes);
         const noteToUpdate = newNotes.find(n => n.id === id);
         if (noteToUpdate) {
-          await db.putNote(noteToUpdate);
-          addToast(noteToUpdate.isPinned ? 'Note pinned' : 'Note unpinned', 'info');
+            await db.putNote(noteToUpdate);
+            addToast(noteToUpdate.isPinned ? 'Note pinned' : 'Note unpinned', 'info');
         }
     }, [notes, addToast]);
-    
+
     const filteredNotes = useMemo(() => {
         let tempNotes = [...notes];
         // Search
@@ -812,7 +820,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             if (isAuthenticated && user?.id && isSupabaseConfigured()) {
                 await cloud.upsertProfile(user.id, newProfile);
             }
-        } catch {}
+        } catch { }
         addToast('Profile updated!', 'success');
         checkForAchievements({ todos, notes, userProfile: newProfile, oldUserProfile });
     }, [userProfile, todos, notes, addToast, checkForAchievements, isAuthenticated, user?.id]);
@@ -823,7 +831,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const showConfirmation = useCallback((title: string, message: string, onConfirm: () => void) => {
         setConfirmationState({ isOpen: true, title, message, onConfirm });
     }, []);
-    const hideConfirmation = useCallback(() => setConfirmationState({ isOpen: false, title: '', message: '', onConfirm: () => {} }), []);
+    const hideConfirmation = useCallback(() => setConfirmationState({ isOpen: false, title: '', message: '', onConfirm: () => { } }), []);
     const openLightbox = useCallback((url: string) => setLightboxImageUrl(url), []);
     const closeLightbox = useCallback(() => setLightboxImageUrl(null), []);
     const openDayDetailModal = useCallback((date: Date, tasks: Todo[], notes: Note[]) => setDayDetail({ date, tasks, notes }), []);
@@ -864,7 +872,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 await reg.showNotification(APP_NAME, options);
                 return;
             }
-        } catch {}
+        } catch { }
         try {
             const n = new Notification(APP_NAME, options);
             // Fallback click handler when SW path isn't available
@@ -878,19 +886,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                                 const winMod = await import('@tauri-apps/api/window');
                                 const appWindow = (winMod as any).appWindow;
                                 if (appWindow) {
-                                    try { await appWindow.unminimize(); } catch {}
-                                    try { await appWindow.show(); } catch {}
-                                    try { await appWindow.setFocus(); } catch {}
+                                    try { await appWindow.unminimize(); } catch { }
+                                    try { await appWindow.show(); } catch { }
+                                    try { await appWindow.setFocus(); } catch { }
                                 }
-                            } catch {}
+                            } catch { }
                         })();
                     } else {
                         // Browser: only focus the existing tab; do not navigate
-                        try { window.focus(); } catch {}
+                        try { window.focus(); } catch { }
                     }
                 };
-            } catch {}
-        } catch {}
+            } catch { }
+        } catch { }
     }, [notificationPermission]);
 
     const sendReminderNotification = useCallback((title: string, body: string) => {
@@ -918,8 +926,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                         try {
                             const audio = new Audio(NOTIFICATION_SOUND);
                             audio.volume = focusSettings.volume;
-                            audio.play().catch(() => {});
-                        } catch {}
+                            audio.play().catch(() => { });
+                        } catch { }
                         todosToUpdate.push({ ...todo, notified: true });
                     }
                 }
@@ -999,7 +1007,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                         if (data.userProfile) await db.saveUserProfile(data.userProfile);
                         if (data.unlockedAchievements) for (const ach of data.unlockedAchievements) await db.putUnlockedAchievement(ach);
                         if (data.tagColors) await db.putValue('tagColors', data.tagColors);
-                        
+
                         setTodos(data.todos || []);
                         setNotes(data.notes || []);
                         setUserProfile(data.userProfile || defaultUserProfile);
@@ -1076,9 +1084,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             if (notificationPermission === 'default') {
                 Notification.requestPermission().then((permission) => {
                     setNotificationPermission(permission);
-                }).catch(() => {});
+                }).catch(() => { });
             }
-        } catch {}
+        } catch { }
         setIsFocusModalOpen(true);
     }, [focusSettings.focusDuration, notificationPermission]);
 
@@ -1094,7 +1102,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const playNotificationSound = useCallback(() => {
         // Sound alerts disabled per user preference: notifications only.
     }, []);
-    
+
     // Timer effect for Focus Mode
     useEffect(() => {
         if (focusSession.isActive && focusSession.timeRemaining > 0) {
@@ -1114,7 +1122,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 changeFocusMode('focus');
             }
         }
-        
+
         return () => {
             if (timerRef.current) {
                 clearInterval(timerRef.current);
@@ -1206,7 +1214,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         openShortcutsModal,
         closeShortcutsModal,
     }), [
-        isLoading, todos, filteredTodos, filter, sortOrder, searchQuery, activeTag, tagColors, 
+        isLoading, todos, filteredTodos, filter, sortOrder, searchQuery, activeTag, tagColors,
         handleAddTodo, handleToggleTodo, handleDeleteTodo, handleEditTodo, handleToggleImportant, handleToggleSubtask, handleEditSubtask, handleSetPriority, handleClearCompletedTodos,
         handleUpdateTodo,
         notes, filteredNotes, notesSearchQuery, notesSortOrder, selectedNoteId,
