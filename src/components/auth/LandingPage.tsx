@@ -144,11 +144,11 @@ const LandingPage: React.FC = () => {
                 </div>
                 <label className="flex items-center gap-2.5 text-sm text-[rgba(var(--foreground-primary-rgb))] cursor-pointer group">
                   <div className="relative">
-                    <input 
-                      type="checkbox" 
-                      checked={remember} 
-                      onChange={e => setRemember(e.target.checked)} 
-                      className="sr-only peer" 
+                    <input
+                      type="checkbox"
+                      checked={remember}
+                      onChange={e => setRemember(e.target.checked)}
+                      className="sr-only peer"
                     />
                     <div className="w-5 h-5 border border-[rgba(var(--border-primary-rgb))] rounded-lg bg-[rgba(var(--background-primary-rgb))] peer-checked:bg-[rgba(var(--accent-rgb))] peer-checked:border-[rgba(var(--accent-rgb))] transition-all duration-200 flex items-center justify-center group-hover:border-[rgba(var(--border-secondary-rgb))]">
                       <svg className={`w-3.5 h-3.5 text-white ${remember ? 'scale-100 opacity-100' : 'scale-0 opacity-0'} transition-all duration-200`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -249,7 +249,7 @@ const LandingPage: React.FC = () => {
       {/* Footer links row */}
       <div className="border-t border-[rgba(var(--border-primary-rgb))]">
         <div className="mx-auto max-w-7xl px-6 md:px-12 py-4">
-          <div className="flex items-center gap-x-4 text-[12px] text-[rgba(var(--foreground-secondary-rgb))]">
+          <div className="flex flex-wrap justify-center md:justify-start gap-x-4 gap-y-2 text-[12px] text-[rgba(var(--foreground-secondary-rgb))]">
             <a className="hover:underline whitespace-nowrap" href="#">About</a>
             <a className="hover:underline whitespace-nowrap" href="#">Download the X app</a>
             <a className="hover:underline whitespace-nowrap" href="#">Help Center</a>

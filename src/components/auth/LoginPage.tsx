@@ -27,18 +27,18 @@ const LoginPage: React.FC = () => {
 
   return (
     <div className="min-h-screen w-full bg-[rgba(var(--background-primary-rgb))] text-[rgba(var(--foreground-primary-rgb))]">
-      <div className="mx-auto max-w-7xl grid grid-cols-1 md:grid-cols-2 items-center px-6 md:px-10 gap-8 md:gap-0 min-h-screen">
+      <div className="mx-auto max-w-7xl grid grid-cols-1 md:grid-cols-2 items-center px-4 md:px-10 gap-4 md:gap-0 min-h-screen">
         {/* Left: Giant X logo */}
-        <div className="flex items-center justify-center py-20 md:py-0">
-          <FaXTwitter className="w-[180px] h-[180px] md:w-[340px] md:h-[340px] text-white" />
+        <div className="flex items-center justify-center py-8 md:py-0">
+          <FaXTwitter className="w-[80px] h-[80px] md:w-[340px] md:h-[340px] text-white" />
         </div>
 
         {/* Right: Login form */}
-        <div className="flex flex-col justify-center md:pl-6">
-          <h1 className="text-5xl md:text-6xl font-extrabold mb-6 leading-tight">Happening now</h1>
-          <h2 className="text-xl font-semibold mb-5">Sign in to X To-Do Corp.</h2>
+        <div className="flex flex-col justify-center items-center md:items-start md:pl-6 w-full">
+          <h1 className="text-4xl md:text-6xl font-extrabold mb-4 md:mb-6 leading-tight text-center md:text-left">Happening now</h1>
+          <h2 className="text-xl md:text-2xl font-semibold mb-3 md:mb-5 text-center md:text-left">Sign in to X To-Do Corp.</h2>
 
-          <form onSubmit={handleSubmit} className="space-y-3 max-w-[340px]">
+          <form onSubmit={handleSubmit} className="space-y-3 w-full max-w-sm">
             <div>
               <label className="block text-sm mb-1 text-[rgba(var(--foreground-secondary-rgb))]">Email</label>
               <input
@@ -73,7 +73,7 @@ const LoginPage: React.FC = () => {
             </label>
           </form>
 
-          <div className="mt-8 max-w-[340px]">
+          <div className="mt-6 md:mt-8 w-full max-w-sm">
             <div className="flex flex-col gap-3">
               <button
                 type="button"
@@ -88,7 +88,7 @@ const LoginPage: React.FC = () => {
             </p>
           </div>
 
-          <div className="flex flex-col items-start mt-4 gap-3 max-w-[340px]">
+          <div className="flex flex-col items-start mt-4 gap-3 w-full max-w-sm">
             <button onClick={() => setPage('forgot')} className="w-full rounded-full border border-[rgba(var(--border-primary-rgb))] py-2 font-semibold hover:bg-[rgba(var(--background-primary-rgb))] transition">
               Forgot password?
             </button>

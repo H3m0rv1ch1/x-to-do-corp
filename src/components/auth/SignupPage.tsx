@@ -36,8 +36,8 @@ const SignupPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[rgba(var(--background-primary-rgb))]">
-      <div className="w-full max-w-lg p-6 md:p-8 rounded-3xl border border-[rgba(var(--border-primary-rgb))] bg-[rgba(var(--background-secondary-rgb))] shadow-[0_20px_60px_rgba(var(--foreground-primary-rgb),0.18)]">
+    <div className="min-h-screen flex items-center justify-center bg-[rgba(var(--background-primary-rgb))] p-4">
+      <div className="w-full max-w-md p-4 md:p-8 rounded-3xl border border-[rgba(var(--border-primary-rgb))] bg-[rgba(var(--background-secondary-rgb))] shadow-[0_20px_60px_rgba(var(--foreground-primary-rgb),0.18)]">
         <div className="flex items-center justify-center mb-4">
           <FaXTwitter className="w-6 h-6 text-white" />
         </div>
