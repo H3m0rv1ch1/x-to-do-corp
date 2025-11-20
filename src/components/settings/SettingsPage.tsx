@@ -38,24 +38,24 @@ const SettingsPage: React.FC = () => {
     const handleImportClick = () => {
         importInputRef.current?.click();
     };
-    
+
     const onFileImport = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (file) {
             handleImportData(file);
         }
-        if(importInputRef.current) {
+        if (importInputRef.current) {
             importInputRef.current.value = "";
         }
     };
-    
+
     const accents = [
-      { name: 'sky', color: '#0ea5e9' },
-      { name: 'pink', color: '#ec4899' },
-      { name: 'green', color: '#22c55e' },
-      { name: 'orange', color: '#f97316' },
-      { name: 'purple', color: '#a855f7' },
-      { name: 'yellow', color: '#eab308' },
+        { name: 'sky', color: '#0ea5e9' },
+        { name: 'pink', color: '#ec4899' },
+        { name: 'green', color: '#22c55e' },
+        { name: 'orange', color: '#f97316' },
+        { name: 'purple', color: '#a855f7' },
+        { name: 'yellow', color: '#eab308' },
     ];
 
 
@@ -77,7 +77,7 @@ const SettingsPage: React.FC = () => {
     );
 
     return (
-        <div className="w-full border-l border-r border-[rgba(var(--border-primary-rgb))]" style={{ minHeight: '100vh' }}>
+        <div className="w-full" style={{ minHeight: '100vh' }}>
             <Header />
             <div className="divide-y divide-[rgba(var(--border-primary-rgb))]">
 
@@ -87,7 +87,7 @@ const SettingsPage: React.FC = () => {
                         title="Theme"
                         description="Switch between light and dark mode."
                         actionComponent={
-                             <div className="flex items-center space-x-2 bg-[rgba(var(--background-tertiary-rgb))] p-1 rounded-full">
+                            <div className="flex items-center space-x-2 bg-[rgba(var(--background-tertiary-rgb))] p-1 rounded-full">
                                 <button onClick={() => setTheme('light')} className={`px-4 py-1 text-sm font-bold rounded-full ${theme === 'light' ? 'bg-[rgba(var(--background-primary-rgb))] text-[rgba(var(--foreground-primary-rgb))]' : 'text-[rgba(var(--foreground-secondary-rgb))]'}`}>
                                     Light
                                 </button>
@@ -100,7 +100,7 @@ const SettingsPage: React.FC = () => {
                     <div className="p-4 space-y-4">
                         <div className="flex items-start">
                             <div className="mr-4 text-[rgba(var(--foreground-secondary-rgb))]">
-                               <div className="w-6 h-6 rounded-full" style={{ background: `linear-gradient(45deg, ${accents[0].color}, ${accents[1].color}, ${accents[2].color})` }}></div>
+                                <div className="w-6 h-6 rounded-full" style={{ background: `linear-gradient(45deg, ${accents[0].color}, ${accents[1].color}, ${accents[2].color})` }}></div>
                             </div>
                             <div className="flex-grow">
                                 <p className="font-semibold text-[rgba(var(--foreground-primary-rgb))]">Accent Color</p>
@@ -108,7 +108,7 @@ const SettingsPage: React.FC = () => {
                             </div>
                         </div>
 
-                        <div 
+                        <div
                             className="flex flex-wrap gap-4"
                             onMouseLeave={() => setPreviewAccent(accent)}
                         >
@@ -118,7 +118,7 @@ const SettingsPage: React.FC = () => {
                                     onMouseEnter={() => setPreviewAccent(acc.name)}
                                     onClick={() => setAccent(acc.name)}
                                     className="w-8 h-8 rounded-full transition-all duration-200 transform hover:scale-110"
-                                    style={{ 
+                                    style={{
                                         backgroundColor: acc.color,
                                         boxShadow: accent === acc.name ? `0 0 0 2px rgba(var(--background-primary-rgb)), 0 0 0 4px ${acc.color}` : 'none'
                                     }}
@@ -129,7 +129,7 @@ const SettingsPage: React.FC = () => {
                         </div>
 
                         {/* Live Preview Section */}
-                        <div 
+                        <div
                             data-accent={previewAccent}
                             className="p-4 rounded-lg border border-[rgba(var(--border-primary-rgb))] bg-[rgba(var(--background-secondary-rgb))] transition-all duration-300"
                         >
@@ -157,8 +157,8 @@ const SettingsPage: React.FC = () => {
                         title="Task Reminders"
                         description={
                             notificationPermission === 'granted' ? 'You will receive notifications for due tasks.' :
-                            notificationPermission === 'denied' ? 'Notifications are blocked by your browser.' :
-                            'Allow notifications to get reminders.'
+                                notificationPermission === 'denied' ? 'Notifications are blocked by your browser.' :
+                                    'Allow notifications to get reminders.'
                         }
                         actionComponent={
                             <label className="switch">
@@ -173,7 +173,7 @@ const SettingsPage: React.FC = () => {
                         }
                     />
                 </SettingsSection>
-                
+
                 <SettingsSection title="Data Management">
                     <SettingsRow
                         icon={<HiDownload className="w-6 h-6" />}
@@ -195,7 +195,7 @@ const SettingsPage: React.FC = () => {
                 </SettingsSection>
 
                 <SettingsSection title="Account Actions">
-                     <SettingsRow
+                    <SettingsRow
                         icon={<TbWand className="w-6 h-6" />}
                         title="Clear Completed Tasks"
                         description="Permanently delete all completed tasks."
@@ -216,7 +216,7 @@ const SettingsPage: React.FC = () => {
                     </h2>
                     <p className="text-sm text-[rgba(var(--foreground-secondary-rgb))] mt-1">This action is destructive and irreversible. Proceed with caution.</p>
                     <div className="mt-4 border border-[rgba(var(--danger-rgb),0.3)] bg-[rgba(var(--danger-rgb),0.05)] rounded-lg divide-y divide-[rgba(var(--danger-rgb),0.2)]">
-                         <SettingsRow
+                        <SettingsRow
                             icon={<HiTrash className="w-6 h-6 text-[rgba(var(--danger-rgb),0.8)]" />}
                             title="Delete All App Data"
                             description="Permanently erase everything."

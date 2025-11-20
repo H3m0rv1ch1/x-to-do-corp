@@ -1,24 +1,47 @@
 
-import React from 'react';
-import { 
-    HiHome, HiOutlineHome, 
+
+
+import React, { useState, useRef } from 'react';
+
+import {
+    HiHome, HiOutlineHome,
     HiBell, HiOutlineBell,
     HiUser, HiOutlineUser,
     HiCalendar, HiOutlineCalendar,
-    HiStar, HiOutlineStar, 
+    HiStar, HiOutlineStar,
     HiDocumentText, HiOutlineDocumentText,
     HiCog, HiOutlineCog,
-    HiPlus
+    HiPlus,
+    HiDotsHorizontal,
+    HiLogout
 } from 'react-icons/hi';
 import { HiTrophy, HiOutlineTrophy } from 'react-icons/hi2';
 import { FaXTwitter } from 'react-icons/fa6';
 import { MdVerified } from 'react-icons/md';
 import { Avatar } from '@/components/ui';
 import { useAppContext } from '@/hooks/useAppContext';
+import { useAuth } from '@/hooks/useAuth';
+import PortalMenu from '@/components/ui/PortalMenu';
+import useClickOutside from '@/hooks/useClickOutside';
 
 
 const LeftSidebar: React.FC = () => {
     const { page, setPage, filter, setFilter, userProfile, openAddTaskModal } = useAppContext();
+    const { logout } = useAuth();
+    const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+    const profileMenuRef = useRef<HTMLDivElement>(null);
+    const profileButtonRef = useRef<HTMLButtonElement>(null);
+
+    useClickOutside(profileMenuRef, () => setIsProfileMenuOpen(false));
+
+    const handleLogout = async () => {
+        try {
+            await logout();
+            setIsProfileMenuOpen(false);
+        } catch (error) {
+            console.error('Logout failed:', error);
+        }
+    };
 
     const navItems = [
         { icon: HiHome, outlineIcon: HiOutlineHome, text: 'Home', page: 'home' as const, filter: 'all' as const },
@@ -50,11 +73,11 @@ const LeftSidebar: React.FC = () => {
                                         <a
                                             href="#"
                                             onClick={(e) => {
-                                              e.preventDefault();
-                                              setPage(item.page);
-                                              if ('filter' in item && item.filter) {
-                                                setFilter(item.filter as 'all' | 'pending' | 'completed' | 'important');
-                                              }
+                                                e.preventDefault();
+                                                setPage(item.page);
+                                                if ('filter' in item && item.filter) {
+                                                    setFilter(item.filter as 'all' | 'pending' | 'completed' | 'important');
+                                                }
                                             }}
                                             className="flex items-center md:justify-center lg:justify-start md:space-x-0 lg:space-x-5 py-3 md:px-0 lg:px-3 rounded-full transition-colors duration-200 hover:bg-[rgba(var(--background-hover-rgb))] w-full"
                                         >
@@ -68,35 +91,88 @@ const LeftSidebar: React.FC = () => {
                             })}
                         </ul>
                     </nav>
-                    <button 
+                    <button
                         onClick={openAddTaskModal}
                         className="hidden lg:flex mt-4 w-full bg-[rgba(var(--button-primary-bg-rgb))] text-[rgba(var(--button-primary-text-rgb))] font-bold py-3 rounded-full transition-opacity duration-200 hover:opacity-90 text-[15px] items-center justify-center"
                     >
                         Add Task
                     </button>
                 </div>
-                <div className="w-full pb-3">
-                    <div 
-                        onClick={() => setPage('profile')}
-                        className="flex items-center md:justify-center lg:justify-start md:space-x-0 lg:space-x-3 p-3 rounded-full hover:bg-[rgba(var(--background-hover-rgb))] transition-colors duration-200 cursor-pointer"
-                    >
-                        <div className="w-10 h-10 flex-shrink-0">
-                            <Avatar imageUrl={userProfile.avatarUrl} />
-                        </div>
-                        <div className="hidden lg:block flex-1 overflow-visible">
-                            <div className="flex items-center space-x-1">
-                                <p className="font-bold text-[15px] text-[rgba(var(--foreground-primary-rgb))]">{userProfile.name}</p>
-                                {userProfile.verificationType === 'user' && <MdVerified className="w-4 h-4 text-[rgba(var(--accent-rgb))] flex-shrink-0" />}
-                                {userProfile.verificationType === 'business' && <MdVerified className="w-4 h-4 text-[rgba(var(--warning-rgb))] flex-shrink-0" />}
-                                {userProfile.organizationAvatarUrl && (
-                                     <a href="#" title={userProfile.organization || 'Organization'} className="flex items-center flex-shrink-0" onClick={(e) => e.preventDefault()}>
-                                        <img src={userProfile.organizationAvatarUrl} alt={`${userProfile.organization || 'Organization'} logo`} className="w-4 h-4 rounded-sm object-cover" />
-                                    </a>
-                                )}
+                <div className="w-full pb-3 relative">
+                    <div className="flex items-center justify-between p-3 rounded-full hover:bg-[rgba(var(--background-hover-rgb))] transition-colors duration-200 group">
+                        {/* Profile area - clickable */}
+                        <div
+                            onClick={() => setPage('profile')}
+                            className="flex items-center space-x-3 cursor-pointer min-w-0 flex-1"
+                        >
+                            <div className="w-10 h-10 flex-shrink-0">
+                                <Avatar imageUrl={userProfile.avatarUrl} />
                             </div>
-                            <p className="hidden lg:block text-[rgba(var(--foreground-secondary-rgb))] text-[15px]">{userProfile.username}</p>
+                            <div className="hidden lg:block min-w-0 flex-1">
+                                <div className="flex items-center space-x-1">
+                                    <p className="font-bold text-[15px] text-[rgba(var(--foreground-primary-rgb))] truncate">{userProfile.name}</p>
+                                    {userProfile.verificationType === 'user' && <MdVerified className="w-4 h-4 text-[rgba(var(--accent-rgb))] flex-shrink-0" />}
+                                    {userProfile.verificationType === 'business' && <MdVerified className="w-4 h-4 text-[rgba(var(--warning-rgb))] flex-shrink-0" />}
+                                    {userProfile.organizationAvatarUrl && (
+                                        <a href="#" title={userProfile.organization || 'Organization'} className="flex items-center flex-shrink-0" onClick={(e) => e.preventDefault()}>
+                                            <img src={userProfile.organizationAvatarUrl} alt={`${userProfile.organization || 'Organization'} logo`} className="w-4 h-4 rounded-sm object-cover" />
+                                        </a>
+                                    )}
+                                </div>
+                                <p className="text-[rgba(var(--foreground-secondary-rgb))] text-[15px] truncate">@{userProfile.username}</p>
+                            </div>
                         </div>
+
+                        {/* Three-dots menu button */}
+                        <button
+                            ref={profileButtonRef}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setIsProfileMenuOpen(!isProfileMenuOpen);
+                            }}
+                            className="hidden lg:block p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-[rgba(var(--background-tertiary-rgb))] text-[rgba(var(--foreground-secondary-rgb))] flex-shrink-0"
+                            aria-label="Profile menu"
+                        >
+                            <HiDotsHorizontal className="w-5 h-5" />
+                        </button>
                     </div>
+
+                    {/* Portal Menu - Positioned to the right */}
+                    <PortalMenu
+                        anchorRef={profileButtonRef}
+                        isOpen={isProfileMenuOpen}
+                        onClose={() => setIsProfileMenuOpen(false)}
+                        preferredPosition="right-end"
+                        offset={12}
+                    >
+                        <div className="w-[240px] bg-[rgba(var(--background-primary-rgb))] rounded-xl shadow-[0_0_15px_rgba(0,0,0,0.2)] border border-[rgba(var(--border-primary-rgb))] py-2 overflow-hidden">
+                            <div className="px-4 py-3 border-b border-[rgba(var(--border-primary-rgb))] mb-1">
+                                <p className="font-bold text-[rgba(var(--foreground-primary-rgb))] truncate">{userProfile.name}</p>
+                                <p className="text-sm text-[rgba(var(--foreground-secondary-rgb))] truncate">@{userProfile.username}</p>
+                            </div>
+
+                            <button
+                                onClick={() => {
+                                    setPage('settings');
+                                    setIsProfileMenuOpen(false);
+                                }}
+                                className="w-full text-left flex items-center space-x-3 px-4 py-3 text-[15px] text-[rgba(var(--foreground-primary-rgb))] hover:bg-[rgba(var(--background-hover-rgb))] transition-colors"
+                            >
+                                <HiCog className="w-5 h-5" />
+                                <span>Settings</span>
+                            </button>
+
+                            <div className="h-px bg-[rgba(var(--border-primary-rgb))] my-1 mx-2"></div>
+
+                            <button
+                                onClick={handleLogout}
+                                className="w-full text-left flex items-center space-x-3 px-4 py-3 text-[15px] text-[rgba(var(--danger-rgb))] hover:bg-[rgba(var(--danger-rgb),0.1)] transition-colors"
+                            >
+                                <HiLogout className="w-5 h-5" />
+                                <span>Log out</span>
+                            </button>
+                        </div>
+                    </PortalMenu>
                 </div>
             </div>
         </aside>

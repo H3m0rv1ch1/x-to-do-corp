@@ -1,91 +1,174 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
+
+export type MenuPosition = 'bottom-left' | 'bottom-right' | 'top-left' | 'top-right' | 'right-start' | 'right-end' | 'left-start' | 'left-end';
 
 interface PortalMenuProps {
   anchorRef: React.RefObject<HTMLElement>;
   isOpen: boolean;
   children: React.ReactNode;
-  placement?: 'auto' | 'above' | 'below';
+  preferredPosition?: MenuPosition;
   offset?: number;
-  align?: 'right' | 'left';
+  onClose?: () => void;
 }
 
-// Lightweight portal menu that positions itself relative to the anchor
-// and sits above all stacking contexts to ensure reliable clicks.
-const PortalMenu: React.FC<PortalMenuProps> = ({ anchorRef, isOpen, children, placement = 'auto', offset = 8, align = 'right' }) => {
-  const [coords, setCoords] = useState<{ left: number; top: number } | null>(null);
-  const [finalPlacement, setFinalPlacement] = useState<'above' | 'below'>('below');
-  const containerRef = React.useRef<HTMLDivElement>(null);
+const PortalMenu: React.FC<PortalMenuProps> = ({
+  anchorRef,
+  isOpen,
+  children,
+  preferredPosition = 'bottom-right',
+  offset = 8,
+  onClose
+}) => {
+  const [coords, setCoords] = useState<{ top: number; left: number } | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const update = () => {
-      const el = anchorRef.current;
-      if (!el) return;
-      const rect = el.getBoundingClientRect();
-      const estimatedHeight = containerRef.current?.offsetHeight ?? 160;
+    const updatePosition = () => {
+      const anchor = anchorRef.current;
+      const menu = menuRef.current;
+      if (!anchor || !menu || !isOpen) return;
 
-      let desired: 'above' | 'below';
-      if (placement === 'auto') {
-        const spaceBelow = window.innerHeight - rect.bottom - offset;
-        const spaceAbove = rect.top - offset;
-        if (spaceBelow >= estimatedHeight) desired = 'below';
-        else if (spaceAbove >= estimatedHeight) desired = 'above';
-        else desired = spaceBelow >= spaceAbove ? 'below' : 'above';
-      } else {
-        desired = placement;
+      const anchorRect = anchor.getBoundingClientRect();
+      const menuRect = menu.getBoundingClientRect();
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
+
+      // Helper to check if a rect fits in viewport
+      const fits = (top: number, left: number, width: number, height: number) => {
+        return (
+          top >= 0 &&
+          left >= 0 &&
+          top + height <= viewportHeight &&
+          left + width <= viewportWidth
+        );
+      };
+
+      // Calculate coordinates for a given position
+      const getCoords = (pos: MenuPosition) => {
+        let top = 0;
+        let left = 0;
+
+        switch (pos) {
+          case 'bottom-right':
+            top = anchorRect.bottom + offset;
+            left = anchorRect.right - menuRect.width;
+            break;
+          case 'bottom-left':
+            top = anchorRect.bottom + offset;
+            left = anchorRect.left;
+            break;
+          case 'top-right':
+            top = anchorRect.top - menuRect.height - offset;
+            left = anchorRect.right - menuRect.width;
+            break;
+          case 'top-left':
+            top = anchorRect.top - menuRect.height - offset;
+            left = anchorRect.left;
+            break;
+          case 'right-start':
+            top = anchorRect.top;
+            left = anchorRect.right + offset;
+            break;
+          case 'right-end':
+            top = anchorRect.bottom - menuRect.height;
+            left = anchorRect.right + offset;
+            break;
+          case 'left-start':
+            top = anchorRect.top;
+            left = anchorRect.left - menuRect.width - offset;
+            break;
+          case 'left-end':
+            top = anchorRect.bottom - menuRect.height;
+            left = anchorRect.left - menuRect.width - offset;
+            break;
+        }
+        return { top, left };
+      };
+
+      // Try preferred position first
+      let { top, left } = getCoords(preferredPosition);
+
+      // If it doesn't fit, try to flip vertically/horizontally
+      if (!fits(top, left, menuRect.width, menuRect.height)) {
+        const positions: MenuPosition[] = [
+          'bottom-right', 'bottom-left', 'top-right', 'top-left',
+          'right-start', 'right-end', 'left-start', 'left-end'
+        ];
+
+        // Find first position that fits
+        for (const pos of positions) {
+          if (pos === preferredPosition) continue;
+          const testCoords = getCoords(pos);
+          if (fits(testCoords.top, testCoords.left, menuRect.width, menuRect.height)) {
+            top = testCoords.top;
+            left = testCoords.left;
+            break;
+          }
+        }
+
+        // If nothing fits perfectly, constrain to viewport
+        if (!fits(top, left, menuRect.width, menuRect.height)) {
+          // Constrain vertically
+          if (top < 0) top = offset;
+          if (top + menuRect.height > viewportHeight) top = viewportHeight - menuRect.height - offset;
+
+          // Constrain horizontally
+          if (left < 0) left = offset;
+          if (left + menuRect.width > viewportWidth) left = viewportWidth - menuRect.width - offset;
+        }
       }
-      setFinalPlacement(desired);
 
-      const leftBase = align === 'right' ? rect.right : rect.left;
-      const topBase = desired === 'below' ? (rect.bottom + offset) : (rect.top - offset - estimatedHeight);
-      setCoords({ left: leftBase, top: topBase });
+      setCoords({ top, left });
     };
 
     if (isOpen) {
-      update();
-      // Recompute on scroll/resize for robustness
-      window.addEventListener('scroll', update, true);
-      window.addEventListener('resize', update);
-      // Recompute after first paint to get actual height
-      requestAnimationFrame(update);
-    }
-    return () => {
-      window.removeEventListener('scroll', update, true);
-      window.removeEventListener('resize', update);
-    };
-  }, [anchorRef, isOpen, placement, offset, align]);
+      // Initial update
+      updatePosition();
 
-  if (!isOpen || !coords) return null;
+      // Update on resize/scroll
+      window.addEventListener('resize', updatePosition);
+      window.addEventListener('scroll', updatePosition, true);
+
+      // Use ResizeObserver for menu size changes
+      const resizeObserver = new ResizeObserver(updatePosition);
+      if (menuRef.current) resizeObserver.observe(menuRef.current);
+
+      return () => {
+        window.removeEventListener('resize', updatePosition);
+        window.removeEventListener('scroll', updatePosition, true);
+        resizeObserver.disconnect();
+      };
+    }
+  }, [isOpen, preferredPosition, offset, anchorRef]);
+
+  if (!isOpen) return null;
 
   return createPortal(
-    <div
-      className="fixed z-[9999] pointer-events-auto"
-      style={{ 
-        left: coords.left, 
-        top: coords.top, 
-        transform: align === 'right' ? 'translateX(-100%)' : 'translateX(0)'
-      }}
-      onMouseDown={(e) => { e.stopPropagation(); }}
-      onPointerDown={(e) => { e.stopPropagation(); }}
-      onClick={(e) => { e.stopPropagation(); }}
-      role="menu"
-      ref={containerRef}
-    >
-      <div className="relative">
+    <>
+      {/* Backdrop to handle clicks outside */}
+      <div
+        className="fixed inset-0 z-[9998] cursor-default"
+        onClick={(e) => {
+          e.stopPropagation();
+          onClose?.();
+        }}
+      />
+
+      {/* Menu */}
+      <div
+        ref={menuRef}
+        className="fixed z-[9999] animate-scale-in"
+        style={{
+          top: coords ? coords.top : -9999,
+          left: coords ? coords.left : -9999,
+          opacity: coords ? 1 : 0, // Hide until positioned
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
         {children}
-        <div 
-          className={`absolute ${finalPlacement === 'above' ? 'bottom-[-6px]' : 'top-[-6px]'} right-4`}
-          style={{
-            width: 0,
-            height: 0,
-            borderLeft: '6px solid transparent',
-            borderRight: '6px solid transparent',
-            borderTop: finalPlacement === 'above' ? '6px solid rgba(var(--background-primary-rgb))' : '0',
-            borderBottom: finalPlacement === 'below' ? '6px solid rgba(var(--background-primary-rgb))' : '0'
-          }}
-        />
       </div>
-    </div>,
+    </>,
     document.body
   );
 };

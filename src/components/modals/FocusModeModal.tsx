@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { HiX, HiPlay, HiPause, HiRefresh, HiCog, HiCheck, HiArrowsExpand, HiOutlineArrowsExpand, HiVolumeUp, HiVolumeOff, HiStop } from 'react-icons/hi';
 import { useAppContext } from '@/hooks/useAppContext';
 import { Select } from '@/components/ui';
+import PortalMenu from '@/components/ui/PortalMenu';
 import { SessionMode, AmbientSound } from '@/contexts/AppContext';
 import FocusMusicPlayer from './FocusMusicPlayer';
 import useClickOutside from '@/hooks/useClickOutside';
@@ -13,20 +14,20 @@ const forestTracks = Object.values(import.meta.glob('../../assets/audio/Forest/*
 const lofiTracks = Object.values(import.meta.glob('../../assets/audio/Lofi/*', { as: 'url', eager: true })) as string[];
 
 const AMBIENT_SOUNDS: Record<AmbientSound, { label: string, srcs: string[] }> = {
-    none:   { label: 'None',   srcs: [] },
-    rain:   { label: 'Rain',   srcs: rainTracks },
-    cafe:   { label: 'Cafe',   srcs: cafeTracks },
+    none: { label: 'None', srcs: [] },
+    rain: { label: 'Rain', srcs: rainTracks },
+    cafe: { label: 'Cafe', srcs: cafeTracks },
     forest: { label: 'Forest', srcs: forestTracks },
-    lofi:   { label: 'Lofi',   srcs: lofiTracks },
-    piano:  { label: 'Piano',  srcs: [] },
+    lofi: { label: 'Lofi', srcs: lofiTracks },
+    piano: { label: 'Piano', srcs: [] },
 };
 
 const FocusModeModal: React.FC = () => {
-    const { 
+    const {
         isFocusModalOpen,
-        activeFocusTodo, 
-        closeFocusModal, 
-        focusSettings, 
+        activeFocusTodo,
+        closeFocusModal,
+        focusSettings,
         updateFocusSettings,
         handleToggleSubtask,
         notificationPermission,
@@ -35,19 +36,20 @@ const FocusModeModal: React.FC = () => {
         toggleFocusSessionActive,
         stopFocusSession,
     } = useAppContext();
-    
+
     const { mode, isActive, cycles, timeRemaining, initialDuration } = focusSession;
-    
+
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [isFullScreen, setIsFullScreen] = useState(false);
     const [showMusicPlayer, setShowMusicPlayer] = useState<boolean>(true);
     const [musicTrackName, setMusicTrackName] = useState<string | null>(null);
-    
+
     const ambientAudioRef = useRef<HTMLAudioElement | null>(null);
     const modalContentRef = useRef<HTMLDivElement>(null);
-    const trackMenuRef = useRef<HTMLDivElement>(null);
+
+    // Track menu state
     const [trackMenuFor, setTrackMenuFor] = useState<AmbientSound | null>(null);
-    const [trackMenuPlacement, setTrackMenuPlacement] = useState<'up' | 'down'>('down');
+    const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
 
     const resetTimer = useCallback(() => {
         const duration = (mode === 'focus' ? focusSettings.focusDuration : mode === 'shortBreak' ? focusSettings.shortBreakDuration : focusSettings.longBreakDuration) * 60;
@@ -59,7 +61,7 @@ const FocusModeModal: React.FC = () => {
         const secs = seconds % 60;
         return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
     };
-    
+
     // Ambient Sound — play selected track by index
     useEffect(() => {
         const audio = ambientAudioRef.current;
@@ -78,7 +80,7 @@ const FocusModeModal: React.FC = () => {
             audio.pause();
         }
     }, [focusSettings.sound, focusSettings.volume, focusSettings.ambientTrackIndex, isActive]);
-    
+
     // Fullscreen handler
     const handleFullScreenToggle = () => {
         if (!document.fullscreenElement) {
@@ -91,8 +93,8 @@ const FocusModeModal: React.FC = () => {
     };
 
     const handleStopFocus = () => {
-        try { document.exitFullscreen(); } catch {}
-        try { ambientAudioRef.current?.pause(); } catch {}
+        try { document.exitFullscreen(); } catch { }
+        try { ambientAudioRef.current?.pause(); } catch { }
         updateFocusSettings({ sound: 'none' });
         stopFocusSession();
     };
@@ -103,13 +105,10 @@ const FocusModeModal: React.FC = () => {
         return () => document.removeEventListener('fullscreenchange', handleFullScreenChange);
     }, []);
 
-    // Close track dropdown when clicking outside
-    useClickOutside(trackMenuRef, () => setTrackMenuFor(null));
-
     if (!isFocusModalOpen || !activeFocusTodo) return null;
 
     const progress = (timeRemaining / initialDuration) * 100;
-    
+
     const ModeButton: React.FC<{ value: SessionMode, label: string }> = ({ value, label }) => (
         <button
             onClick={() => changeFocusMode(value)}
@@ -121,13 +120,13 @@ const FocusModeModal: React.FC = () => {
 
     return (
         <div className="fixed inset-0 bg-black/70 z-50 flex justify-center items-center animate-fade-in">
-            <div 
+            <div
                 ref={modalContentRef}
                 className={`relative bg-[rgba(var(--background-primary-rgb))] w-full h-full transform transition-all flex flex-col ${isFullScreen ? '' : 'md:rounded-2xl md:shadow-lg md:max-w-3xl md:max-h-[92vh]'}`}
             >
                 {/* Visual Timer Background */}
-                 <div className="focus-bg-gradient" style={{ height: `${100 - progress}%` }} />
-                 <div className="focus-bg-gradient" style={{ top: 'auto', bottom: 0, height: `${progress}%` }}></div>
+                <div className="focus-bg-gradient" style={{ height: `${100 - progress}%` }} />
+                <div className="focus-bg-gradient" style={{ top: 'auto', bottom: 0, height: `${progress}%` }}></div>
 
 
                 {/* Header */}
@@ -135,7 +134,7 @@ const FocusModeModal: React.FC = () => {
                     <h2 className="text-xl font-bold">Focus Mode</h2>
                     <div className="flex items-center space-x-2">
                         <button onClick={handleFullScreenToggle} className="p-2 rounded-full hover:bg-[rgba(var(--background-tertiary-rgb),0.5)]">
-                           {isFullScreen ? <HiOutlineArrowsExpand className="w-5 h-5"/> : <HiArrowsExpand className="w-5 h-5"/>}
+                            {isFullScreen ? <HiOutlineArrowsExpand className="w-5 h-5" /> : <HiArrowsExpand className="w-5 h-5" />}
                         </button>
                         <button onClick={() => setIsSettingsOpen(!isSettingsOpen)} className={`p-2 rounded-full ${isSettingsOpen ? 'bg-[rgba(var(--background-tertiary-rgb),0.8)]' : 'hover:bg-[rgba(var(--background-tertiary-rgb),0.5)]'}`}>
                             <HiCog className="w-5 h-5" />
@@ -153,7 +152,7 @@ const FocusModeModal: React.FC = () => {
                         <div className="p-4 bg-[rgba(var(--background-secondary-rgb),0.6)] backdrop-blur-md rounded-xl border border-[rgba(var(--border-primary-rgb))] flex flex-col items-center">
                             {/* Timer Ring */}
                             <div className="relative w-40 h-40 md:w-64 md:h-64 rounded-full"
-                                 style={{ backgroundImage: `conic-gradient(rgba(var(--accent-rgb)) ${100 - progress}%, rgba(var(--background-tertiary-rgb)) 0)` }}>
+                                style={{ backgroundImage: `conic-gradient(rgba(var(--accent-rgb)) ${100 - progress}%, rgba(var(--background-tertiary-rgb)) 0)` }}>
                                 <div className="absolute inset-3 rounded-full bg-[rgba(var(--background-primary-rgb))] flex items-center justify-center">
                                     <div className={`text-4xl md:text-6xl font-bold ${isActive ? 'animate-focus-pulse' : ''}`}>{formatTime(timeRemaining)}</div>
                                 </div>
@@ -169,13 +168,13 @@ const FocusModeModal: React.FC = () => {
                             {/* Controls */}
                             <div className="flex justify-center items-center gap-3 mt-4">
                                 <button aria-label="Play or pause focus" onClick={toggleFocusSessionActive} className="bg-[rgba(var(--accent-rgb))] text-[rgba(var(--foreground-on-accent-rgb))] w-12 h-12 md:w-14 md:h-14 rounded-full flex items-center justify-center shadow-lg hover:opacity-90 transition-opacity">
-                                    {isActive ? <HiPause className="w-6 h-6 md:w-7 md:h-7"/> : <HiPlay className="w-6 h-6 md:w-7 md:h-7"/>}
+                                    {isActive ? <HiPause className="w-6 h-6 md:w-7 md:h-7" /> : <HiPlay className="w-6 h-6 md:w-7 md:h-7" />}
                                 </button>
                                 <button aria-label="Stop focus session" onClick={handleStopFocus} title="Stop Focus" className="bg-[rgba(var(--danger-rgb))] text-[rgba(var(--foreground-on-accent-rgb))] w-12 h-12 md:w-14 md:h-14 rounded-full flex items-center justify-center shadow-lg hover:opacity-90">
                                     <HiStop className="w-6 h-6 md:w-7 md:h-7" />
                                 </button>
                                 <button aria-label="Reset timer" onClick={resetTimer} className="bg-[rgba(var(--background-secondary-rgb),0.5)] backdrop-blur-sm text-[rgba(var(--foreground-primary-rgb))] w-12 h-12 md:w-14 md:h-14 rounded-full flex items-center justify-center shadow-lg hover:bg-[rgba(var(--border-primary-rgb))] transition-colors">
-                                    <HiRefresh className="w-6 h-6 md:w-7 md:h-7"/>
+                                    <HiRefresh className="w-6 h-6 md:w-7 md:h-7" />
                                 </button>
                             </div>
 
@@ -215,7 +214,7 @@ const FocusModeModal: React.FC = () => {
                         </div>
                     </div>
                 </main>
-                
+
                 {/* Settings Panel */}
                 {isSettingsOpen && (
                     <div className="absolute top-16 right-4 z-20 bg-[rgba(var(--background-secondary-rgb),0.8)] backdrop-blur-md rounded-lg shadow-lg border border-[rgba(var(--border-primary-rgb))] w-72 p-4 animate-fade-in focus-settings-panel">
@@ -224,43 +223,43 @@ const FocusModeModal: React.FC = () => {
                                 <label className="text-xs font-bold text-[rgba(var(--foreground-secondary-rgb))]">FOCUS (MINS)</label>
                                 <input type="number" value={focusSettings.focusDuration} onChange={e => updateFocusSettings({ focusDuration: Number(e.target.value) })} className="mt-1" />
                             </div>
-                             <div>
+                            <div>
                                 <label className="text-xs font-bold text-[rgba(var(--foreground-secondary-rgb))]">BREAK (MINS)</label>
                                 <div className="flex space-x-2 mt-1">
                                     <input type="number" placeholder="Short" value={focusSettings.shortBreakDuration} onChange={e => updateFocusSettings({ shortBreakDuration: Number(e.target.value) })} />
                                     <input type="number" placeholder="Long" value={focusSettings.longBreakDuration} onChange={e => updateFocusSettings({ longBreakDuration: Number(e.target.value) })} />
                                 </div>
                             </div>
-                             <div className="flex items-center justify-between pt-2">
+                            <div className="flex items-center justify-between pt-2">
                                 <label className="text-sm font-semibold">Auto-start timers</label>
                                 <label className="switch">
                                     <input type="checkbox" checked={focusSettings.autoStart} onChange={e => updateFocusSettings({ autoStart: e.target.checked })} />
                                     <span className="slider"></span>
                                 </label>
                             </div>
-                             <div>
+                            <div>
                                 <label className="text-xs font-bold text-[rgba(var(--foreground-secondary-rgb))]">AMBIENT SOUND</label>
                                 <div className="mt-2 relative">
                                     <Select
-                                      className="w-full"
-                                      fullWidth
-                                      buttonClassName="w-full pr-10"
-                                      value={focusSettings.sound}
-                                      onChange={(val) => updateFocusSettings({ sound: val as AmbientSound })}
-                                      options={Object.entries(AMBIENT_SOUNDS)
-                                        .filter(([key, def]) => key === 'none' || def.srcs.length > 0)
-                                        .map(([key, { label }]) => ({ value: key, label }))}
-                                      size="md"
+                                        className="w-full"
+                                        fullWidth
+                                        buttonClassName="w-full pr-10"
+                                        value={focusSettings.sound}
+                                        onChange={(val) => updateFocusSettings({ sound: val as AmbientSound })}
+                                        options={Object.entries(AMBIENT_SOUNDS)
+                                            .filter(([key, def]) => key === 'none' || def.srcs.length > 0)
+                                            .map(([key, { label }]) => ({ value: key, label }))}
+                                        size="md"
                                     />
                                     <button
-                                      onClick={() => updateFocusSettings({ volume: focusSettings.volume > 0 ? 0 : 0.5 })}
-                                      className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-full hover:bg-[rgba(var(--background-tertiary-rgb))]"
-                                      aria-label={focusSettings.volume > 0 ? 'Mute ambient' : 'Unmute ambient'}
+                                        onClick={() => updateFocusSettings({ volume: focusSettings.volume > 0 ? 0 : 0.5 })}
+                                        className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-full hover:bg-[rgba(var(--background-tertiary-rgb))]"
+                                        aria-label={focusSettings.volume > 0 ? 'Mute ambient' : 'Unmute ambient'}
                                     >
-                                        {focusSettings.volume > 0 ? <HiVolumeUp className="w-5 h-5"/> : <HiVolumeOff className="w-5 h-5"/>}
+                                        {focusSettings.volume > 0 ? <HiVolumeUp className="w-5 h-5" /> : <HiVolumeOff className="w-5 h-5" />}
                                     </button>
                                 </div>
-                                <input type="range" min="0" max="1" step="0.05" value={focusSettings.volume} onChange={e => updateFocusSettings({ volume: Number(e.target.value)})} className="custom-slider mt-2" />
+                                <input type="range" min="0" max="1" step="0.05" value={focusSettings.volume} onChange={e => updateFocusSettings({ volume: Number(e.target.value) })} className="custom-slider mt-2" />
                                 {(() => {
                                     const def = AMBIENT_SOUNDS[focusSettings.sound];
                                     const sources = def?.srcs ?? [];
@@ -271,13 +270,13 @@ const FocusModeModal: React.FC = () => {
                                         <div className="mt-3">
                                             <label className="text-xs font-bold text-[rgba(var(--foreground-secondary-rgb))]">TRACK</label>
                                             <Select
-                                              className="mt-1"
-                                              fullWidth
-                                              buttonClassName="w-full"
-                                              size="md"
-                                              value={String(Math.min(Math.max(currentIndex, 0), sources.length - 1))}
-                                              onChange={(val) => updateFocusSettings({ ambientTrackIndex: Number(val) })}
-                                              options={trackNames.map((name, idx) => ({ value: String(idx), label: name }))}
+                                                className="mt-1"
+                                                fullWidth
+                                                buttonClassName="w-full"
+                                                size="md"
+                                                value={String(Math.min(Math.max(currentIndex, 0), sources.length - 1))}
+                                                onChange={(val) => updateFocusSettings({ ambientTrackIndex: Number(val) })}
+                                                options={trackNames.map((name, idx) => ({ value: String(idx), label: name }))}
                                             />
                                         </div>
                                     );
@@ -290,71 +289,74 @@ const FocusModeModal: React.FC = () => {
                 {/* Footer / Sound Toggles */}
                 <footer className="relative z-10 flex flex-col items-center justify-center gap-3 p-4 flex-shrink-0">
                     <div className="flex items-center flex-wrap gap-2">
-                         {Object.entries(AMBIENT_SOUNDS)
+                        {Object.entries(AMBIENT_SOUNDS)
                             .filter(([key, def]) => key !== 'none' && def.srcs.length > 0)
-                            .map(([key, {label, srcs}]) => {
-                              const isActive = focusSettings.sound === key;
-                              const selectedIndex = typeof focusSettings.ambientTrackIndex === 'number' ? focusSettings.ambientTrackIndex : 0;
-                              const safeIndex = Math.min(Math.max(selectedIndex, 0), srcs.length - 1);
-                              const displayName = `${label} ${safeIndex + 1}`;
-                              return (
-                                <div key={key} className="relative" ref={isActive && trackMenuFor === key ? trackMenuRef : undefined}>
-                                  <div className="flex items-center gap-1">
-                                    <button
-                                      onClick={() => updateFocusSettings({ sound: isActive ? 'none' : key as AmbientSound })}
-                                      className={`px-3 py-1 text-xs rounded-full border transition-colors ${isActive ? 'bg-[rgba(var(--accent-rgb),0.2)] border-[rgba(var(--accent-rgb))] text-[rgba(var(--accent-rgb))]' : 'border-[rgba(var(--border-primary-rgb))] text-[rgba(var(--foreground-secondary-rgb))] hover:bg-[rgba(var(--background-tertiary-rgb))]'}`}
-                                      title={isActive ? displayName : label}
-                                    >
-                                      {isActive ? displayName : label}
-                                    </button>
-                                    {isActive && srcs.length > 1 && (
-                                      <button
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          const rect = (e.currentTarget.getBoundingClientRect && e.currentTarget.getBoundingClientRect()) || { top: 0, bottom: 0 } as DOMRect;
-                                          const spaceBelow = window.innerHeight - rect.bottom;
-                                          const spaceAbove = rect.top;
-                                          const estimatedHeight = Math.min(srcs.length, 8) * 32 + 24; // approx item height + padding
-                                          const placement: 'up' | 'down' = spaceBelow < estimatedHeight && spaceAbove > spaceBelow ? 'up' : 'down';
-                                          setTrackMenuPlacement(placement);
-                                          setTrackMenuFor(prev => prev === key as AmbientSound ? null : key as AmbientSound);
-                                        }}
-                                        className="px-2 py-1 text-xs rounded-full border transition-colors border-[rgba(var(--border-primary-rgb))] text-[rgba(var(--foreground-secondary-rgb))] hover:bg-[rgba(var(--background-tertiary-rgb))]"
-                                        title={`Choose ${label} track`}
-                                      >
-                                        {trackMenuFor === key && trackMenuPlacement === 'up' ? '▲' : '▼'}
-                                      </button>
-                                    )}
-                                  </div>
-                                  {isActive && trackMenuFor === key && (
-                                    <div className={`absolute left-0 ${trackMenuPlacement === 'up' ? 'bottom-full mb-2' : 'top-full mt-2'} w-56 max-h-60 overflow-auto bg-[rgba(var(--background-primary-rgb))] rounded-lg shadow-lg border border-[rgba(var(--border-primary-rgb))] p-2 z-30 animate-fade-in`}>
-                                      <ul className="space-y-1">
-                                        {srcs.map((_, idx) => (
-                                          <li key={idx}>
+                            .map(([key, { label, srcs }]) => {
+                                const isActive = focusSettings.sound === key;
+                                const selectedIndex = typeof focusSettings.ambientTrackIndex === 'number' ? focusSettings.ambientTrackIndex : 0;
+                                const safeIndex = Math.min(Math.max(selectedIndex, 0), srcs.length - 1);
+                                const displayName = `${label} ${safeIndex + 1}`;
+                                return (
+                                    <div key={key} className="relative">
+                                        <div className="flex items-center gap-1">
                                             <button
-                                              type="button"
-                                              onClick={() => { updateFocusSettings({ ambientTrackIndex: idx }); setTrackMenuFor(null); }}
-                                              className={`w-full text-left px-3 py-1.5 text-sm rounded-md transition-colors ${safeIndex === idx ? 'bg-[rgba(var(--accent-rgb))] text-[rgba(var(--foreground-on-accent-rgb))]' : 'text-[rgba(var(--foreground-primary-rgb))] hover:bg-[rgba(var(--background-tertiary-rgb))]'}`}
+                                                onClick={() => updateFocusSettings({ sound: isActive ? 'none' : key as AmbientSound })}
+                                                className={`px-3 py-1 text-xs rounded-full border transition-colors ${isActive ? 'bg-[rgba(var(--accent-rgb),0.2)] border-[rgba(var(--accent-rgb))] text-[rgba(var(--accent-rgb))]' : 'border-[rgba(var(--border-primary-rgb))] text-[rgba(var(--foreground-secondary-rgb))] hover:bg-[rgba(var(--background-tertiary-rgb))]'}`}
+                                                title={isActive ? displayName : label}
                                             >
-                                              {label} {idx + 1}
+                                                {isActive ? displayName : label}
                                             </button>
-                                          </li>
-                                        ))}
-                                      </ul>
+                                            {isActive && srcs.length > 1 && (
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setAnchorEl(e.currentTarget);
+                                                        setTrackMenuFor(prev => prev === key as AmbientSound ? null : key as AmbientSound);
+                                                    }}
+                                                    className="px-2 py-1 text-xs rounded-full border transition-colors border-[rgba(var(--border-primary-rgb))] text-[rgba(var(--foreground-secondary-rgb))] hover:bg-[rgba(var(--background-tertiary-rgb))]"
+                                                    title={`Choose ${label} track`}
+                                                >
+                                                    ▼
+                                                </button>
+                                            )}
+                                        </div>
+                                        {isActive && trackMenuFor === key && (
+                                            <PortalMenu
+                                                anchorRef={{ current: anchorEl }}
+                                                isOpen={true}
+                                                onClose={() => setTrackMenuFor(null)}
+                                                preferredPosition="top-left"
+                                                offset={8}
+                                            >
+                                                <div className="w-56 max-h-60 overflow-auto bg-[rgba(var(--background-primary-rgb))] rounded-lg shadow-lg border border-[rgba(var(--border-primary-rgb))] p-2">
+                                                    <ul className="space-y-1">
+                                                        {srcs.map((_, idx) => (
+                                                            <li key={idx}>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => { updateFocusSettings({ ambientTrackIndex: idx }); setTrackMenuFor(null); }}
+                                                                    className={`w-full text-left px-3 py-1.5 text-sm rounded-md transition-colors ${safeIndex === idx ? 'bg-[rgba(var(--accent-rgb))] text-[rgba(var(--foreground-on-accent-rgb))]' : 'text-[rgba(var(--foreground-primary-rgb))] hover:bg-[rgba(var(--background-tertiary-rgb))]'}`}
+                                                                >
+                                                                    {label} {idx + 1}
+                                                                </button>
+                                                            </li>
+                                                        ))}
+                                                    </ul>
+                                                </div>
+                                            </PortalMenu>
+                                        )}
                                     </div>
-                                  )}
-                                </div>
-                              );
+                                );
                             })}
-                         <button
+                        <button
                             onClick={() => { setShowMusicPlayer(v => !v); if (!showMusicPlayer) updateFocusSettings({ sound: 'none' }); }}
                             className={`px-3 py-1 text-xs rounded-full border transition-colors ${showMusicPlayer ? 'bg-[rgba(var(--accent-rgb),0.2)] border-[rgba(var(--accent-rgb))] text-[rgba(var(--accent-rgb))]' : 'border-[rgba(var(--border-primary-rgb))] text-[rgba(var(--foreground-secondary-rgb))] hover:bg-[rgba(var(--background-tertiary-rgb))]'}`}
-                         >
+                        >
                             {musicTrackName ? `Music: ${musicTrackName}` : 'Custom Music'}
-                         </button>
+                        </button>
                     </div>
                 </footer>
-                
+
                 <audio ref={ambientAudioRef} />
             </div>
         </div>

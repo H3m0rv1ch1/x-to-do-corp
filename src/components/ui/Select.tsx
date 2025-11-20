@@ -76,13 +76,13 @@ const Select: React.FC<SelectProps> = ({
         <span className="truncate">{selected ? selected.label : placeholder}</span>
         <HiChevronDown className="w-4 h-4 opacity-70" />
       </button>
-      <PortalMenu anchorRef={buttonRef} isOpen={isOpen}>
+      <PortalMenu anchorRef={buttonRef} isOpen={isOpen} onClose={() => setIsOpen(false)}>
         <div className="max-h-64 overflow-auto bg-[rgba(var(--background-primary-rgb))] rounded-lg shadow-lg border border-[rgba(var(--border-primary-rgb))] p-1" style={{ width: menuWidth ?? undefined }}>
           <ul role="listbox" className="space-y-1">
             {options.map((opt) => {
               const isSelected = String(opt.value) === String(value);
               return (
-                <li key={`${opt.value}`}> 
+                <li key={`${opt.value}`}>
                   <button
                     type="button"
                     onClick={() => { onChange(opt.value); setIsOpen(false); }}
