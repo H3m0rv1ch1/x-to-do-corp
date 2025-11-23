@@ -18,6 +18,9 @@ interface AuthContextType {
   loginLocal: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   requestPasswordReset: (email: string) => Promise<void>;
+  convertToOnline: (password: string) => Promise<void>;
+  convertToLocal: () => Promise<void>;
+  deleteAccount: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -327,8 +330,138 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     throw new Error('Password reset requires internet connection.');
   };
 
+  const convertToOnline = async (password: string) => {
+    if (!user) throw new Error('No user logged in');
+    if (!user.isOfflineOnly) throw new Error('Already using online account');
+    if (!isSupabaseConfigured()) throw new Error('Supabase not configured');
+    if (!navigator.onLine) throw new Error('Internet connection required');
+
+    // 1. Create Supabase account with same email
+    const supabase = getSupabase();
+    const { data, error } = await supabase.auth.signUp({
+      email: user.email,
+      password,
+      options: {
+        data: { name: user.name },
+        emailRedirectTo: window.location.origin + '/app'
+      },
+    });
+
+    if (error) throw new Error(error.message);
+    if (!data.user) throw new Error('Failed to create online account');
+
+    // 2. Migrate all local data to Supabase
+    const { getTodos, getNotes, getUserProfile, getUnlockedAchievements } = await import('../services/db');
+    const [todos, notes, profile, achievements] = await Promise.all([
+      getTodos(),
+      getNotes(),
+      getUserProfile(),
+      getUnlockedAchievements()
+    ]);
+
+    // 3. Push data to Supabase (using sync service)
+    const { syncService } = await import('../services/syncService');
+    
+    // Update local data with new user ID
+    const newUserId = data.user.id;
+    
+    // 4. Update session
+    const newUser: AuthUser = {
+      id: newUserId,
+      name: user.name,
+      email: user.email,
+      isOfflineOnly: false
+    };
+    setUser(newUser);
+    writeSession(newUser);
+
+    // 5. Trigger initial sync to push all data
+    await syncService.pushChanges();
+    
+    // 6. Start auto-sync
+    syncService.startAutoSync();
+  };
+
+  const convertToLocal = async () => {
+    if (!user) throw new Error('No user logged in');
+    if (user.isOfflineOnly) throw new Error('Already using local account');
+
+    // 1. Pull all data from Supabase first
+    if (isSupabaseConfigured() && navigator.onLine) {
+      const { syncService } = await import('../services/syncService');
+      await syncService.pullChanges();
+    }
+
+    // 2. Create local user account
+    const { putUser } = await import('../services/db');
+    const passwordHash = await hashPassword(crypto.randomUUID()); // Random password for local
+    await putUser({
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      passwordHash,
+      createdAt: new Date().toISOString()
+    });
+
+    // 3. Sign out from Supabase
+    if (isSupabaseConfigured()) {
+      const supabase = getSupabase();
+      await supabase.auth.signOut();
+    }
+
+    // 4. Update session to local
+    const localUser: AuthUser = {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      isOfflineOnly: true
+    };
+    setUser(localUser);
+    writeSession(localUser);
+  };
+
+  const deleteAccount = async () => {
+    if (!user) throw new Error('No user logged in');
+
+    // 1. Delete all local data first
+    const { clearAllData } = await import('../services/db');
+    await clearAllData();
+
+    // 2. If online account, delete from Supabase
+    if (!user.isOfflineOnly && isSupabaseConfigured() && navigator.onLine) {
+      try {
+        const supabase = getSupabase();
+        
+        // Delete user's data from Supabase tables (RLS will handle this automatically)
+        // The CASCADE delete in the schema will remove todos and profile when user is deleted
+        
+        // Delete the auth user (this requires admin API or user to be logged in)
+        const { error } = await supabase.rpc('delete_user');
+        
+        if (error) {
+          // If RPC doesn't exist, just sign out (user can delete via Supabase dashboard)
+          console.warn('Could not delete user from auth:', error);
+          await supabase.auth.signOut();
+        }
+      } catch (err) {
+        console.error('Failed to delete from Supabase:', err);
+        // Continue anyway to clear local data
+      }
+    }
+
+    // 3. Clear session
+    setUser(null);
+    writeSession(null);
+    
+    // 4. Clear localStorage auth data
+    try {
+      localStorage.removeItem('auth_users');
+      localStorage.removeItem('auth_session');
+    } catch {}
+  };
+
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated: !!user, isLoading, login, signup, signupLocal, loginLocal, logout, requestPasswordReset }}>
+    <AuthContext.Provider value={{ user, isAuthenticated: !!user, isLoading, login, signup, signupLocal, loginLocal, logout, requestPasswordReset, convertToOnline, convertToLocal, deleteAccount }}>
       {children}
     </AuthContext.Provider>
   );

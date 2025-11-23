@@ -1,4 +1,4 @@
-import type { Todo, UserProfile } from '@/types';
+import type { Todo, UserProfile, Note } from '@/types';
 import { getSupabase, isSupabaseConfigured } from './supabaseClient';
 
 // Converts app Todo to DB row format (snake_case + extra columns)
@@ -119,5 +119,60 @@ export async function upsertProfile(userId: string, profile: UserProfile): Promi
   const supabase = getSupabase();
   const row = toProfileRow(userId, profile);
   const { error } = await supabase.from('profiles').upsert(row, { onConflict: 'id' });
+  if (error) throw new Error(error.message);
+}
+
+// Note helpers
+function toNoteRow(userId: string, n: Note) {
+  return {
+    id: n.id,
+    user_id: userId,
+    title: n.title,
+    content: n.content,
+    is_pinned: n.isPinned,
+    created_at: n.createdAt,
+    updated_at: n.updatedAt,
+  };
+}
+
+function fromNoteRow(row: any): Note {
+  return {
+    id: row.id,
+    title: row.title,
+    content: row.content,
+    isPinned: !!row.is_pinned,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+export async function fetchNotes(userId: string): Promise<Note[]> {
+  if (!isSupabaseConfigured()) return [];
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from('notes')
+    .select('*')
+    .eq('user_id', userId)
+    .order('updated_at', { ascending: false });
+  if (error) throw new Error(error.message);
+  return (data || []).map(fromNoteRow);
+}
+
+export async function upsertNotes(userId: string, notes: Note[]): Promise<void> {
+  if (!isSupabaseConfigured() || notes.length === 0) return;
+  const supabase = getSupabase();
+  const rows = notes.map(n => toNoteRow(userId, n));
+  const { error } = await supabase.from('notes').upsert(rows, { onConflict: 'id' });
+  if (error) throw new Error(error.message);
+}
+
+export async function upsertNote(userId: string, note: Note): Promise<void> {
+  return upsertNotes(userId, [note]);
+}
+
+export async function deleteNoteRemote(userId: string, noteId: string): Promise<void> {
+  if (!isSupabaseConfigured()) return;
+  const supabase = getSupabase();
+  const { error } = await supabase.from('notes').delete().eq('id', noteId).eq('user_id', userId);
   if (error) throw new Error(error.message);
 }

@@ -6,8 +6,6 @@ import { ToastContainer } from '@/components/ui';
 import { AppProvider } from '@/contexts/AppContext';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { useAuth } from '@/hooks/useAuth';
-import LoginPage from '@/components/auth/LoginPage';
-import SignupPage from '@/components/auth/SignupPage';
 import ForgotPasswordPage from '@/components/auth/ForgotPasswordPage';
 import LandingPage from '@/components/auth/LandingPage';
 import { useAppContext } from '@/hooks/useAppContext';
