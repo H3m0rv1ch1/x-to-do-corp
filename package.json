@@ -2,6 +2,7 @@
   "name": "x-todo-corp",
   "version": "1.5.0",
   "description": "🚀 A modern, feature-rich task management application with Twitter/X-inspired design. Built with React, TypeScript, and Vite. Features include smart task management, notes, achievements, focus mode, and beautiful themes.",
+  "main": "electron/main.cjs",
   "keywords": [
     "todo",
     "task-manager",
@@ -12,7 +13,8 @@
     "pwa",
     "offline-first",
     "twitter-ui",
-    "x-inspired"
+    "x-inspired",
+    "electron"
   ],
   "homepage": "https://github.com/H3m0rv1ch1/x-to-do-corp#readme",
   "repository": {
@@ -31,9 +33,9 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "wrangler": "echo 'Build complete - Cloudflare will handle deployment'",
-    "tauri": "tauri",
-    "tauri:dev": "tauri dev",
-    "tauri:build": "tauri build"
+    "electron:dev": "concurrently -k \"npm run dev\" \"wait-on tcp:3000 && electron .\"",
+    "electron:build": "npm run build && electron-builder",
+    "electron:start": "electron ."
   },
   "dependencies": {
     "@google/genai": "^1.24.0",
@@ -48,13 +50,42 @@
     "@capacitor/android": "^6.0.0",
     "@capacitor/cli": "^6.0.0",
     "@capacitor/core": "^6.0.0",
-    "@tauri-apps/api": "^2.9.0",
-    "@tauri-apps/cli": "^2.9.2",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
     "@vitejs/plugin-react": "^4.2.0",
+    "concurrently": "^8.2.2",
+    "electron": "^33.0.0",
+    "electron-builder": "^25.1.8",
     "sharp-cli": "^5.2.0",
     "typescript": "^5.3.0",
-    "vite": "^5.0.0"
+    "vite": "^5.0.0",
+    "wait-on": "^7.2.0"
+  },
+  "build": {
+    "appId": "com.xtodo.app",
+    "productName": "X To-Do Corp",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*"
+    ],
+    "win": {
+      "target": ["nsis", "portable"],
+      "icon": "electron/icons/icon.ico"
+    },
+    "mac": {
+      "target": ["dmg", "zip"],
+      "icon": "electron/icons/icon.icns"
+    },
+    "linux": {
+      "target": ["AppImage", "deb"],
+      "icon": "electron/icons"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
   }
 }

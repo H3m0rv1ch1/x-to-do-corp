@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { HiBell } from 'react-icons/hi';
 import { useAppContext } from '@/hooks/useAppContext';
 
-const isTauriEnv = () => typeof window !== 'undefined' && (window as any).__TAURI__ !== undefined;
+const isElectronEnv = () => typeof window !== 'undefined' && (window as any).electronAPI !== undefined;
 
 const NotificationPrompt: React.FC = () => {
   const { notificationPermission, requestNotificationPermission } = useAppContext();
@@ -11,7 +11,7 @@ const NotificationPrompt: React.FC = () => {
   });
 
   if (dismissed) return null;
-  if (isTauriEnv()) return null;
+  if (isElectronEnv()) return null;
   // Show only when the browser hasn't decided yet
   if (notificationPermission !== 'default') return null;
 

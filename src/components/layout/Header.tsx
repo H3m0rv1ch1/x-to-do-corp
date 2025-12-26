@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { FaXTwitter } from 'react-icons/fa6';
-import { HiDotsHorizontal, HiSearch, HiArrowLeft, HiMinus, HiX } from 'react-icons/hi';
+import { HiDotsHorizontal, HiSearch, HiArrowLeft } from 'react-icons/hi';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useAuth } from '@/hooks/useAuth';
 import useClickOutside from '@/hooks/useClickOutside';
@@ -44,34 +44,6 @@ const Header: React.FC = () => {
 
   // Only show the more button on the home page where sorting/clearing is relevant
   const canShowMore = page === 'home';
-  const isTauriEnv = typeof window !== 'undefined' && (window as any).__TAURI__ !== undefined;
-
-  const handleMinimize = async () => {
-    if (!isTauriEnv) return;
-    try {
-      const { getCurrentWindow } = await import('@tauri-apps/api/window');
-      const win = getCurrentWindow();
-      await win.minimize();
-    } catch (e) { }
-  };
-
-  const handleMaximize = async () => {
-    if (!isTauriEnv) return;
-    try {
-      const { getCurrentWindow } = await import('@tauri-apps/api/window');
-      const win = getCurrentWindow();
-      await win.toggleMaximize();
-    } catch (e) { }
-  };
-
-  const handleClose = async () => {
-    if (!isTauriEnv) return;
-    try {
-      const { getCurrentWindow } = await import('@tauri-apps/api/window');
-      const win = getCurrentWindow();
-      await win.close();
-    } catch (e) { }
-  };
 
   if (isSearchActive) {
     return (
@@ -130,25 +102,6 @@ const Header: React.FC = () => {
                 </button>
               </Tooltip>
               <HeaderMenu isOpen={isMenuOpen} onClose={() => setIsMenuOpen(false)} anchorRef={menuRef} />
-            </div>
-          )}
-          {isTauriEnv && (
-            <div className="flex items-center ml-2">
-              <Tooltip text="Minimize">
-                <button onClick={handleMinimize} className="px-2 py-2 rounded hover:bg-[rgba(var(--background-tertiary-rgb))]" aria-label="Minimize">
-                  <HiMinus className="w-5 h-5 text-[rgba(var(--foreground-primary-rgb))]" />
-                </button>
-              </Tooltip>
-              <Tooltip text="Maximize">
-                <button onClick={handleMaximize} className="px-2 py-2 rounded hover:bg-[rgba(var(--background-tertiary-rgb))]" aria-label="Maximize">
-                  <span className="block w-3 h-3 border border-[rgba(var(--foreground-primary-rgb))]" />
-                </button>
-              </Tooltip>
-              <Tooltip text="Close">
-                <button onClick={handleClose} className="px-2 py-2 rounded hover:bg-[rgba(var(--danger-rgb))] hover:text-white" aria-label="Close">
-                  <HiX className="w-5 h-5" />
-                </button>
-              </Tooltip>
             </div>
           )}
           {/* Mobile Profile Avatar (furthest right) */}

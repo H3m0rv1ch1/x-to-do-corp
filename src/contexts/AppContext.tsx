@@ -1086,25 +1086,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             const n = new Notification(APP_NAME, options);
             // Fallback click handler when SW path isn't available
             try {
-                const isTauriEnv = () => typeof window !== 'undefined' && (window as any).__TAURI__ !== undefined;
                 n.onclick = () => {
-                    // Prefer Tauri window focus when available
-                    if (isTauriEnv()) {
-                        void (async () => {
-                            try {
-                                const winMod = await import('@tauri-apps/api/window');
-                                const appWindow = (winMod as any).appWindow;
-                                if (appWindow) {
-                                    try { await appWindow.unminimize(); } catch { }
-                                    try { await appWindow.show(); } catch { }
-                                    try { await appWindow.setFocus(); } catch { }
-                                }
-                            } catch { }
-                        })();
-                    } else {
-                        // Browser: only focus the existing tab; do not navigate
-                        try { window.focus(); } catch { }
-                    }
+                    // Browser: only focus the existing tab; do not navigate
+                    try { window.focus(); } catch { }
                 };
             } catch { }
         } catch { }

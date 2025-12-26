@@ -1,126 +1,84 @@
-# Desktop Build Guide
+# Desktop Build Guide (Electron)
 
 ## Prerequisites
 
-### Windows
-1. Install [Microsoft Visual Studio C++ Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/)
-2. Install [WebView2](https://developer.microsoft.com/en-us/microsoft-edge/webview2/) (usually pre-installed on Windows 10/11)
-3. Install [Rust](https://www.rust-lang.org/tools/install)
-
-### macOS
-```bash
-xcode-select --install
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-```
-
-### Linux (Ubuntu/Debian)
-```bash
-sudo apt update
-sudo apt install libwebkit2gtk-4.0-dev \
-    build-essential \
-    curl \
-    wget \
-    file \
-    libssl-dev \
-    libgtk-3-dev \
-    libayatana-appindicator3-dev \
-    librsvg2-dev
-
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-```
+- Node.js 18+ installed
+- npm or yarn
 
 ## Environment Setup
 
-1. Copy your environment variables:
-```bash
-cp .env.local src-tauri/.env.local
+1. Create your `.env` file in the project root with your API keys:
+```
+REACT_APP_SUPABASE_URL=your_supabase_url
+REACT_APP_SUPABASE_ANON_KEY=your_supabase_key
+GEMINI_API_KEY=your_gemini_key
 ```
 
-2. Edit `src-tauri/.env.local` and add your Gemini API key:
-```
-GEMINI_API_KEY=your_actual_api_key_here
+## Install Dependencies
+
+```bash
+npm install
 ```
 
 ## Development
 
 Run the desktop app in development mode:
 ```bash
-npm run tauri:dev
+npm run electron:dev
 ```
 
 This will:
-- Start the Vite dev server
-- Launch the Tauri window
-- Enable hot-reload for both frontend and backend
+- Start the Vite dev server on port 3000
+- Launch the Electron window once the server is ready
+- Enable hot-reload for the frontend
+- Open DevTools automatically
 
 ## Building
 
 ### Build for your current platform:
 ```bash
-npm run tauri:build
+npm run electron:build
 ```
 
 ### Output locations:
-- **Windows**: `src-tauri/target/release/bundle/msi/X To-Do Corp_1.0.0_x64_en-US.msi`
-- **Windows (NSIS)**: `src-tauri/target/release/bundle/nsis/X To-Do Corp_1.0.0_x64-setup.exe`
-- **macOS**: `src-tauri/target/release/bundle/dmg/X To-Do Corp_1.0.0_x64.dmg`
-- **Linux**: `src-tauri/target/release/bundle/deb/x-todo-corp_1.0.0_amd64.deb`
-- **Linux (AppImage)**: `src-tauri/target/release/bundle/appimage/x-todo-corp_1.0.0_amd64.AppImage`
+- **Windows (NSIS installer)**: `release/X To-Do Corp Setup x.x.x.exe`
+- **Windows (Portable)**: `release/X To-Do Corp x.x.x.exe`
+- **macOS (DMG)**: `release/X To-Do Corp-x.x.x.dmg`
+- **macOS (ZIP)**: `release/X To-Do Corp-x.x.x-mac.zip`
+- **Linux (AppImage)**: `release/X To-Do Corp-x.x.x.AppImage`
+- **Linux (DEB)**: `release/x-todo-corp_x.x.x_amd64.deb`
 
-## Build Options
+## Scripts
 
-### Debug build (faster, larger):
-```bash
-npm run tauri build -- --debug
-```
-
-### Specific bundle format:
-```bash
-# Windows MSI only
-npm run tauri build -- --bundles msi
-
-# macOS DMG only
-npm run tauri build -- --bundles dmg
-
-# Linux DEB only
-npm run tauri build -- --bundles deb
-```
+| Command | Description |
+|---------|-------------|
+| `npm run dev` | Start Vite dev server only |
+| `npm run electron:dev` | Start dev server + Electron |
+| `npm run electron:start` | Start Electron with existing build |
+| `npm run electron:build` | Build app + create installers |
+| `npm run build` | Build web version only |
 
 ## Troubleshooting
 
-### "Rust not found"
-Install Rust: https://www.rust-lang.org/tools/install
+### "Cannot find module 'electron'"
+Run `npm install` to install dependencies.
 
-### "WebView2 not found" (Windows)
-Download and install: https://developer.microsoft.com/en-us/microsoft-edge/webview2/
+### White screen on launch
+Make sure the Vite dev server is running on port 3000, or build the app first.
 
-### Build fails on first try
-Run again - Rust dependencies take time to compile on first build
-
-### App won't start
-Check that your `.env.local` file exists in `src-tauri/` directory
-
-## App Size
-
-- **Tauri**: ~3-5 MB (uses system webview)
-- **Electron equivalent**: ~50-100 MB (bundles Chromium)
-
-## Features
-
-The desktop app includes:
-- Native window controls
-- System tray integration (optional)
-- Native notifications
-- File system access
-- Better performance than web version
-- Smaller memory footprint
-- Auto-updates (can be configured)
+### Build fails
+- Ensure you have enough disk space
+- Try deleting `node_modules` and `release` folders, then run `npm install` again
 
 ## Configuration
 
-Edit `src-tauri/tauri.conf.json` to customize:
+Edit `package.json` under the `"build"` section to customize:
+- App ID and name
+- Icons for each platform
+- Installer options
+- Target platforms
+
+Edit `electron/main.js` to customize:
 - Window size and behavior
-- App icons
-- Bundle settings
-- Security policies
-- System tray options
+- Menu options
+- DevTools settings

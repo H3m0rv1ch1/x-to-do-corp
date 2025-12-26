@@ -7,7 +7,7 @@ const isStandalone = () => {
   return mq || ios;
 };
 
-const isTauriEnv = () => typeof window !== 'undefined' && (window as any).__TAURI__ !== undefined;
+const isElectronEnv = () => typeof window !== 'undefined' && (window as any).electronAPI !== undefined;
 
 const InstallBanner: React.FC = () => {
   const [dismissed, setDismissed] = useState<boolean>(() => {
@@ -25,7 +25,7 @@ const InstallBanner: React.FC = () => {
   }, []);
 
   if (dismissed) return null;
-  if (isTauriEnv()) return null;
+  if (isElectronEnv()) return null;
   if (isStandalone()) return null;
 
   const handleDismiss = () => {
