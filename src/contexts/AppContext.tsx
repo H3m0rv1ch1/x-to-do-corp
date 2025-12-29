@@ -317,7 +317,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         return () => window.removeEventListener('popstate', onPopState);
     }, [pathToPage]);
 
-    // Initial Data Loading
+    // Initial Data Loading - re-runs when user changes to load/reset data for the current user
     useEffect(() => {
         const loadData = async () => {
             setIsLoading(true);
@@ -337,7 +337,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 ]);
                 setTodos(loadedTodos);
                 setNotes(loadedNotes);
-                setUserProfile(loadedProfile || defaultUserProfile);
+                // For new users, initialize profile with their name from auth
+                if (loadedProfile) {
+                    setUserProfile(loadedProfile);
+                } else if (user?.name && user.name !== 'User') {
+                    // New user - create initial profile with their name
+                    const initialProfile = { ...defaultUserProfile, name: user.name };
+                    setUserProfile(initialProfile);
+                    await db.saveUserProfile(initialProfile);
+                } else {
+                    setUserProfile(defaultUserProfile);
+                }
                 setUnlockedAchievements(loadedAchievements);
                 setTagColors(loadedTagColors);
                 rawSetTheme(loadedTheme);
@@ -345,19 +355,24 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 setFocusSettings(loadedFocusSettings);
             } catch (error) {
                 console.error("Failed to load data from DB:", error);
-                addToast('Could not load your data.', 'error');
+                // Only show error toast if user is authenticated (not during initial app load)
+                if (isAuthenticated) {
+                    addToast('Could not load your data.', 'error');
+                }
             } finally {
                 setIsLoading(false);
             }
         };
         loadData();
-    }, []);
+    }, [user?.id]);
 
     // Cloud Sync (Supabase only): on auth, pull remote todos (or push local if remote empty)
     useEffect(() => {
         const run = async () => {
             if (!isAuthenticated || !user?.id) return;
             if (!isSupabaseConfigured()) return;
+            // Skip sync for offline-only accounts
+            if (user.isOfflineOnly) return;
             try {
                 const remote = await cloud.fetchTodos(user.id);
                 if (remote.length === 0 && todos.length > 0) {
@@ -369,24 +384,26 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 }
             } catch (err) {
                 console.error('Cloud sync failed:', err);
-                addToast('Cloud sync failed. Working locally.', 'error');
+                // Don't show error for new users with no data yet
             }
         };
         void run();
-    }, [isAuthenticated, user?.id]);
+    }, [isAuthenticated, user?.id, user?.isOfflineOnly]);
 
     // Cloud Sync (Supabase only): on auth, pull remote profile (or push local if missing)
     useEffect(() => {
         const run = async () => {
             if (!isAuthenticated || !user?.id) return;
             if (!isSupabaseConfigured()) return;
+            // Skip sync for offline-only accounts
+            if (user.isOfflineOnly) return;
             try {
                 const remoteProfile = await cloud.fetchProfile(user.id);
                 if (remoteProfile) {
                     setUserProfile(remoteProfile);
                     await db.saveUserProfile(remoteProfile);
                 } else {
-                    // seed with local profile if none exists, but prefer Auth user name over "Guest"
+                    // New user - seed with local profile, prefer Auth user name over "Guest"
                     const initialProfile = {
                         ...userProfile,
                         name: user.name && user.name !== 'User' ? user.name : userProfile.name
@@ -394,18 +411,21 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                     // If we have a name from Auth but profile was default, update state too
                     if (initialProfile.name !== userProfile.name) {
                         setUserProfile(initialProfile);
+                        await db.saveUserProfile(initialProfile);
                     }
+                    // Create profile in Supabase for new user
                     await cloud.upsertProfile(user.id, initialProfile);
                 }
             } catch (err) {
                 console.error('Profile sync failed:', err);
-                addToast('Profile sync failed. Working locally.', 'error');
+                // Don't show error toast for new users - profile will be created on first save
+                // Only show if we expected to find a profile
             }
         };
         void run();
         // Only depend on auth state and user id; avoid re-pushing on profile edits here
         // Profile saves are handled in handleSaveProfile
-    }, [isAuthenticated, user?.id, user?.name]);
+    }, [isAuthenticated, user?.id, user?.name, user?.isOfflineOnly]);
 
     // Derived State: pageTitle
     const pageTitle = useMemo(() => {

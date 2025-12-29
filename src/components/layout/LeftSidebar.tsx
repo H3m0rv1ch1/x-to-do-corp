@@ -79,12 +79,12 @@ const LeftSidebar: React.FC = () => {
                                                     setFilter(item.filter as 'all' | 'pending' | 'completed' | 'important');
                                                 }
                                             }}
-                                            className="flex items-center md:justify-center lg:justify-start md:space-x-0 lg:space-x-5 py-3 md:px-0 lg:px-3 rounded-full transition-colors duration-200 hover:bg-[rgba(var(--background-hover-rgb))] w-full"
+                                            className="inline-flex items-center md:justify-center lg:justify-start md:space-x-0 lg:space-x-4 py-3 px-4 rounded-full transition-colors duration-200 hover:bg-[rgba(var(--background-hover-rgb))]"
                                         >
                                             <div>
                                                 <Icon className="w-[26px] h-[26px]" />
                                             </div>
-                                            <span className={`hidden lg:inline text-[20px] ${isActive ? 'font-bold' : ''} text-[rgba(var(--foreground-primary-rgb))]`}>{item.text}</span>
+                                            <span className={`hidden lg:inline text-[20px] pr-2 ${isActive ? 'font-bold' : ''} text-[rgba(var(--foreground-primary-rgb))]`}>{item.text}</span>
                                         </a>
                                     </li>
                                 );
@@ -119,7 +119,7 @@ const LeftSidebar: React.FC = () => {
                                         </a>
                                     )}
                                 </div>
-                                <p className="text-[rgba(var(--foreground-secondary-rgb))] text-[15px] truncate">@{userProfile.username}</p>
+                                <p className="text-[rgba(var(--foreground-secondary-rgb))] text-[15px] truncate">{userProfile.username.startsWith('@') ? userProfile.username : `@${userProfile.username}`}</p>
                             </div>
                         </div>
 
@@ -148,7 +148,7 @@ const LeftSidebar: React.FC = () => {
                         <div className="w-[240px] bg-[rgba(var(--background-primary-rgb))] rounded-xl shadow-[0_0_15px_rgba(0,0,0,0.2)] border border-[rgba(var(--border-primary-rgb))] py-2 overflow-hidden">
                             <div className="px-4 py-3 border-b border-[rgba(var(--border-primary-rgb))] mb-1">
                                 <p className="font-bold text-[rgba(var(--foreground-primary-rgb))] truncate">{userProfile.name}</p>
-                                <p className="text-sm text-[rgba(var(--foreground-secondary-rgb))] truncate">@{userProfile.username}</p>
+                                <p className="text-sm text-[rgba(var(--foreground-secondary-rgb))] truncate">{userProfile.username.startsWith('@') ? userProfile.username : `@${userProfile.username}`}</p>
                             </div>
 
                             <button
