@@ -34,7 +34,7 @@ const RightSidebar: React.FC = () => {
   }
 
   return (
-    <aside className="sticky top-0 h-screen hidden xl:flex flex-col space-y-4 py-2 px-4 w-[350px] flex-shrink-0 bg-[rgba(var(--background-primary-rgb))]">
+    <aside className="sticky top-0 h-screen hidden xl:flex flex-col space-y-4 py-2 px-4 ml-4 w-[380px] flex-shrink-0 bg-[rgba(var(--background-primary-rgb))]">
       <div className="relative">
         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
           <HiSearch className="w-5 h-5 text-[rgba(var(--foreground-secondary-rgb))]" />

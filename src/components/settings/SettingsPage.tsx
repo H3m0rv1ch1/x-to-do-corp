@@ -196,196 +196,255 @@ const SettingsPage: React.FC = () => {
             <div className="divide-y divide-[rgba(var(--border-primary-rgb))]">
 
                 <SettingsSection title="Appearance">
-                    <SettingsRow
-                        icon={<FaPaintbrush className="w-6 h-6" />}
-                        title="Theme"
-                        description="Switch between light and dark mode."
-                        actionComponent={
-                            <div className="flex items-center space-x-2 bg-[rgba(var(--background-tertiary-rgb))] p-1 rounded-full">
-                                <button onClick={() => setTheme('light')} className={`px-4 py-1 text-sm font-bold rounded-full ${theme === 'light' ? 'bg-[rgba(var(--background-primary-rgb))] text-[rgba(var(--foreground-primary-rgb))]' : 'text-[rgba(var(--foreground-secondary-rgb))]'}`}>
-                                    Light
-                                </button>
-                                <button onClick={() => setTheme('dark')} className={`px-4 py-1 text-sm font-bold rounded-full ${theme === 'dark' ? 'bg-[rgba(var(--background-primary-rgb))] text-[rgba(var(--foreground-primary-rgb))]' : 'text-[rgba(var(--foreground-secondary-rgb))]'}`}>
-                                    Dark
-                                </button>
-                            </div>
-                        }
-                    />
                     <div className="p-4 space-y-4">
-                        <div className="flex items-start">
-                            <div className="mr-4 text-[rgba(var(--foreground-secondary-rgb))]">
-                                <div className="w-6 h-6 rounded-full" style={{ background: `linear-gradient(45deg, ${accents[0].color}, ${accents[1].color}, ${accents[2].color})` }}></div>
+                        {/* Theme Selection */}
+                        <div className="p-3 rounded-xl border border-[rgba(var(--border-primary-rgb))]">
+                            <div className="flex items-center space-x-2 mb-3">
+                                <FaPaintbrush className="w-4 h-4 text-[rgba(var(--accent-rgb))]" />
+                                <p className="font-semibold text-sm text-[rgba(var(--foreground-primary-rgb))]">Theme</p>
                             </div>
-                            <div className="flex-grow">
-                                <p className="font-semibold text-[rgba(var(--foreground-primary-rgb))]">Accent Color</p>
-                                <p className="text-sm text-[rgba(var(--foreground-secondary-rgb))]">Choose your favorite color for buttons and highlights. Hover to preview.</p>
-                            </div>
-                        </div>
-
-                        <div
-                            className="flex flex-wrap gap-4"
-                            onMouseLeave={() => setPreviewAccent(accent)}
-                        >
-                            {accents.map(acc => (
-                                <button
-                                    key={acc.name}
-                                    onMouseEnter={() => setPreviewAccent(acc.name)}
-                                    onClick={() => setAccent(acc.name)}
-                                    className="w-8 h-8 rounded-full transition-all duration-200 transform hover:scale-110"
-                                    style={{
-                                        backgroundColor: acc.color,
-                                        boxShadow: accent === acc.name ? `0 0 0 2px rgba(var(--background-primary-rgb)), 0 0 0 4px ${acc.color}` : 'none'
-                                    }}
-                                    aria-label={`Set accent color to ${acc.name}`}
+                            <div className="grid grid-cols-2 gap-2">
+                                <button 
+                                    onClick={() => setTheme('light')} 
+                                    className={`p-2.5 rounded-lg border-2 transition-all duration-200 ${theme === 'light' 
+                                        ? 'border-[rgba(var(--accent-rgb))] bg-[rgba(var(--accent-rgb),0.1)]' 
+                                        : 'border-[rgba(var(--border-primary-rgb))] hover:border-[rgba(var(--border-secondary-rgb))]'}`}
                                 >
+                                    <div data-theme="light" className="w-full h-10 rounded bg-[rgba(var(--background-primary-rgb))] border border-[rgba(var(--border-primary-rgb))] mb-2 flex items-center justify-center overflow-hidden">
+                                        <div className="w-3/4 h-6 bg-[rgba(var(--background-secondary-rgb))] rounded flex items-center px-1.5">
+                                            <div className="w-1.5 h-1.5 rounded-full bg-[rgba(var(--foreground-secondary-rgb))] mr-1"></div>
+                                            <div className="flex-1 h-1 bg-[rgba(var(--border-primary-rgb))] rounded"></div>
+                                        </div>
+                                    </div>
+                                    <p className={`text-xs font-semibold ${theme === 'light' ? 'text-[rgba(var(--accent-rgb))]' : 'text-[rgba(var(--foreground-primary-rgb))]'}`}>Light</p>
                                 </button>
-                            ))}
+                                <button 
+                                    onClick={() => setTheme('dark')} 
+                                    className={`p-2.5 rounded-lg border-2 transition-all duration-200 ${theme === 'dark' 
+                                        ? 'border-[rgba(var(--accent-rgb))] bg-[rgba(var(--accent-rgb),0.1)]' 
+                                        : 'border-[rgba(var(--border-primary-rgb))] hover:border-[rgba(var(--border-secondary-rgb))]'}`}
+                                >
+                                    <div data-theme="dark" className="w-full h-10 rounded bg-[rgba(var(--background-primary-rgb))] border border-[rgba(var(--border-primary-rgb))] mb-2 flex items-center justify-center overflow-hidden">
+                                        <div className="w-3/4 h-6 bg-[rgba(var(--background-secondary-rgb))] rounded flex items-center px-1.5">
+                                            <div className="w-1.5 h-1.5 rounded-full bg-[rgba(var(--foreground-secondary-rgb))] mr-1"></div>
+                                            <div className="flex-1 h-1 bg-[rgba(var(--border-primary-rgb))] rounded"></div>
+                                        </div>
+                                    </div>
+                                    <p className={`text-xs font-semibold ${theme === 'dark' ? 'text-[rgba(var(--accent-rgb))]' : 'text-[rgba(var(--foreground-primary-rgb))]'}`}>Dark</p>
+                                </button>
+                            </div>
                         </div>
 
-                        {/* Live Preview Section */}
-                        <div
-                            data-accent={previewAccent}
-                            className="p-4 rounded-lg border border-[rgba(var(--border-primary-rgb))] bg-[rgba(var(--background-secondary-rgb))] transition-all duration-300"
-                        >
-                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                                <div className="flex items-center space-x-4">
-                                    <div className="p-2 rounded-full bg-[rgba(var(--accent-rgb),0.1)]">
-                                        <HiHome className="w-6 h-6 text-[rgba(var(--accent-rgb))]" />
-                                    </div>
-                                    <div>
-                                        <p className="font-bold text-[rgba(var(--foreground-primary-rgb))]">Home</p>
-                                        <p className="text-sm text-[rgba(var(--accent-rgb))]">Sample Text</p>
-                                    </div>
-                                </div>
-                                <button className="bg-[rgba(var(--accent-rgb))] text-[rgba(var(--foreground-on-accent-rgb))] font-bold px-4 py-2 rounded-full text-sm">
-                                    Preview Button
-                                </button>
+                        {/* Accent Color Selection */}
+                        <div className="p-3 rounded-xl border border-[rgba(var(--border-primary-rgb))]">
+                            <div className="flex items-center space-x-2 mb-3">
+                                <div className="w-4 h-4 rounded-full" style={{ background: `linear-gradient(135deg, ${accents[0].color}, ${accents[4].color})` }}></div>
+                                <p className="font-semibold text-sm text-[rgba(var(--foreground-primary-rgb))]">Accent Color</p>
+                            </div>
+                            <div
+                                className="flex justify-between"
+                                onMouseLeave={() => setPreviewAccent(accent)}
+                            >
+                                {accents.map(acc => (
+                                    <button
+                                        key={acc.name}
+                                        data-accent={acc.name}
+                                        onMouseEnter={() => setPreviewAccent(acc.name)}
+                                        onClick={() => setAccent(acc.name)}
+                                        className={`flex-1 mx-0.5 first:ml-0 last:mr-0 py-2 rounded-lg transition-all duration-200 flex flex-col items-center gap-1.5 ${accent === acc.name 
+                                            ? 'bg-[rgba(var(--background-primary-rgb))] border border-[rgba(var(--border-secondary-rgb))]' 
+                                            : 'hover:bg-[rgba(var(--background-tertiary-rgb))]'}`}
+                                        aria-label={`Set accent color to ${acc.name}`}
+                                    >
+                                        <div 
+                                            className={`w-5 h-5 rounded-full transition-transform flex items-center justify-center ${accent === acc.name ? 'scale-110' : ''}`}
+                                            style={{ backgroundColor: acc.color }}
+                                        >
+                                            {accent === acc.name && (
+                                                <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                                </svg>
+                                            )}
+                                        </div>
+                                        <span className={`text-[10px] capitalize ${accent === acc.name ? 'text-[rgba(var(--foreground-primary-rgb))] font-medium' : 'text-[rgba(var(--foreground-secondary-rgb))]'}`}>
+                                            {acc.name}
+                                        </span>
+                                    </button>
+                                ))}
                             </div>
                         </div>
                     </div>
                 </SettingsSection>
 
                 <SettingsSection title="Notifications">
-                    <SettingsRow
-                        icon={<HiBell className="w-6 h-6" />}
-                        title="Task Reminders"
-                        description={
-                            notificationPermission === 'granted' ? 'You will receive notifications for due tasks.' :
-                                notificationPermission === 'denied' ? 'Notifications are blocked by your browser.' :
-                                    'Allow notifications to get reminders.'
-                        }
-                        actionComponent={
-                            <label className="switch">
-                                <input
-                                    type="checkbox"
-                                    checked={notificationPermission === 'granted'}
-                                    disabled={notificationPermission === 'denied'}
-                                    onChange={handleToggleChange}
-                                />
-                                <span className="slider"></span>
-                            </label>
-                        }
-                    />
-                </SettingsSection>
-
-                <SettingsSection title="Account">
-                    <div className="p-4 space-y-3">
-                        <div className="flex items-center justify-between p-4 rounded-lg border border-[rgba(var(--border-primary-rgb))] bg-[rgba(var(--background-secondary-rgb))]">
-                            <div className="flex items-center space-x-3">
-                                {user?.isOfflineOnly ? (
-                                    <HiLockClosed className="w-6 h-6 text-[rgba(var(--accent-rgb))]" />
-                                ) : (
-                                    <HiCloud className="w-6 h-6 text-[rgba(var(--accent-rgb))]" />
-                                )}
-                                <div>
-                                    <p className="font-bold text-[rgba(var(--foreground-primary-rgb))]">
-                                        {user?.isOfflineOnly ? 'Local Account' : 'Online Account'}
-                                    </p>
-                                    <p className="text-sm text-[rgba(var(--foreground-secondary-rgb))]">
-                                        {user?.isOfflineOnly 
-                                            ? 'Data stored locally on this device' 
-                                            : 'Data synced across all devices'}
+                    <div className="p-4">
+                        <div className="p-3 rounded-xl border border-[rgba(var(--border-primary-rgb))]">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center space-x-3">
+                                    <div className={`p-2 rounded-full ${notificationPermission === 'granted' ? 'bg-[rgba(var(--accent-rgb),0.15)]' : 'bg-[rgba(var(--foreground-secondary-rgb),0.1)]'}`}>
+                                        <HiBell className={`w-5 h-5 ${notificationPermission === 'granted' ? 'text-[rgba(var(--accent-rgb))]' : 'text-[rgba(var(--foreground-secondary-rgb))]'}`} />
+                                    </div>
+                                    <div>
+                                        <p className="font-semibold text-sm text-[rgba(var(--foreground-primary-rgb))]">Task Reminders</p>
+                                        <p className="text-xs text-[rgba(var(--foreground-secondary-rgb))]">
+                                            {notificationPermission === 'granted' ? 'Enabled' :
+                                                notificationPermission === 'denied' ? 'Blocked by browser' : 'Disabled'}
+                                        </p>
+                                    </div>
+                                </div>
+                                <label className="switch">
+                                    <input
+                                        type="checkbox"
+                                        checked={notificationPermission === 'granted'}
+                                        disabled={notificationPermission === 'denied'}
+                                        onChange={handleToggleChange}
+                                    />
+                                    <span className="slider"></span>
+                                </label>
+                            </div>
+                            {notificationPermission === 'denied' && (
+                                <div className="mt-3 p-2 rounded-lg bg-[rgba(var(--danger-rgb),0.1)] border border-[rgba(var(--danger-rgb),0.2)]">
+                                    <p className="text-xs text-[rgba(var(--danger-rgb))]">
+                                        Notifications are blocked. Enable them in your browser settings.
                                     </p>
                                 </div>
-                            </div>
+                            )}
                         </div>
-
-                        {user?.isOfflineOnly ? (
-                            <SettingsRow
-                                icon={<HiSwitchHorizontal className="w-6 h-6" />}
-                                title="Convert to Online Account"
-                                description="Enable cloud sync and access your data from any device."
-                                actionComponent={
-                                    <ActionButton onClick={handleConvertToOnline}>Convert</ActionButton>
-                                }
-                            />
-                        ) : (
-                            <SettingsRow
-                                icon={<HiSwitchHorizontal className="w-6 h-6" />}
-                                title="Convert to Local Account"
-                                description="Store data locally for maximum privacy."
-                                actionComponent={
-                                    <ActionButton onClick={handleConvertToLocal}>Convert</ActionButton>
-                                }
-                            />
-                        )}
                     </div>
                 </SettingsSection>
 
-                <SettingsSection title="Data Management">
-                    <SettingsRow
-                        icon={<HiDownload className="w-6 h-6" />}
-                        title="Export Data"
-                        description="Download a backup of all your data."
-                        actionComponent={<ActionButton onClick={handleExportData}>Export</ActionButton>}
-                    />
-                    <SettingsRow
-                        icon={<HiUpload className="w-6 h-6" />}
-                        title="Import Data"
-                        description="Import tasks, notes, and profile from a backup file."
-                        actionComponent={
-                            <>
-                                <ActionButton onClick={handleImportClick}>Import</ActionButton>
-                                <input type="file" ref={importInputRef} onChange={onFileImport} className="sr-only" accept=".json" />
-                            </>
-                        }
-                    />
+                <SettingsSection title="Account">
+                    <div className="p-4">
+                        <div className="grid grid-cols-2 gap-3">
+                            {/* Account Type Card */}
+                            <div className="p-3 rounded-xl border border-[rgba(var(--accent-rgb))] bg-[rgba(var(--accent-rgb),0.1)]">
+                                <div className="flex items-center justify-between mb-2">
+                                    <div className="flex items-center space-x-2">
+                                        {user?.isOfflineOnly ? (
+                                            <HiLockClosed className="w-4 h-4 text-[rgba(var(--accent-rgb))]" />
+                                        ) : (
+                                            <HiCloud className="w-4 h-4 text-[rgba(var(--accent-rgb))]" />
+                                        )}
+                                        <p className="font-semibold text-sm text-[rgba(var(--foreground-primary-rgb))]">
+                                            {user?.isOfflineOnly ? 'Local Account' : 'Online Account'}
+                                        </p>
+                                    </div>
+                                    <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-[rgba(var(--accent-rgb))] text-[rgba(var(--foreground-on-accent-rgb))]">
+                                        Active
+                                    </span>
+                                </div>
+                                <p className="text-xs text-[rgba(var(--foreground-secondary-rgb))]">
+                                    {user?.isOfflineOnly 
+                                        ? 'Data stored locally' 
+                                        : 'Synced across devices'}
+                                </p>
+                            </div>
+
+                            {/* Convert Account Card */}
+                            <button 
+                                onClick={user?.isOfflineOnly ? handleConvertToOnline : handleConvertToLocal}
+                                className="p-3 rounded-xl border border-[rgba(var(--border-primary-rgb))] hover:bg-[rgba(var(--background-hover-rgb))] transition-colors text-left"
+                            >
+                                <div className="flex items-center space-x-2 mb-2">
+                                    <HiSwitchHorizontal className="w-4 h-4 text-[rgba(var(--accent-rgb))]" />
+                                    <p className="font-semibold text-sm text-[rgba(var(--foreground-primary-rgb))]">
+                                        {user?.isOfflineOnly ? 'Go Online' : 'Go Local'}
+                                    </p>
+                                </div>
+                                <p className="text-xs text-[rgba(var(--foreground-secondary-rgb))]">
+                                    {user?.isOfflineOnly 
+                                        ? 'Enable cloud sync' 
+                                        : 'Maximum privacy'}
+                                </p>
+                            </button>
+
+                            {/* Export Data Card */}
+                            <button 
+                                onClick={handleExportData}
+                                className="p-3 rounded-xl border border-[rgba(var(--border-primary-rgb))] hover:bg-[rgba(var(--background-hover-rgb))] transition-colors text-left"
+                            >
+                                <div className="flex items-center space-x-2 mb-2">
+                                    <HiDownload className="w-4 h-4 text-[rgba(var(--accent-rgb))]" />
+                                    <p className="font-semibold text-sm text-[rgba(var(--foreground-primary-rgb))]">Export Data</p>
+                                </div>
+                                <p className="text-xs text-[rgba(var(--foreground-secondary-rgb))]">Download a backup</p>
+                            </button>
+
+                            {/* Import Data Card */}
+                            <button 
+                                onClick={handleImportClick}
+                                className="p-3 rounded-xl border border-[rgba(var(--border-primary-rgb))] hover:bg-[rgba(var(--background-hover-rgb))] transition-colors text-left"
+                            >
+                                <div className="flex items-center space-x-2 mb-2">
+                                    <HiUpload className="w-4 h-4 text-[rgba(var(--accent-rgb))]" />
+                                    <p className="font-semibold text-sm text-[rgba(var(--foreground-primary-rgb))]">Import Data</p>
+                                </div>
+                                <p className="text-xs text-[rgba(var(--foreground-secondary-rgb))]">Restore from backup</p>
+                            </button>
+                            <input type="file" ref={importInputRef} onChange={onFileImport} className="sr-only" accept=".json" />
+                        </div>
+                    </div>
                 </SettingsSection>
 
                 <SettingsSection title="Account Actions">
-                    <SettingsRow
-                        icon={<TbWand className="w-6 h-6" />}
-                        title="Clear Completed Tasks"
-                        description="Permanently delete all completed tasks."
-                        actionComponent={<ActionButton onClick={handleClearCompletedTodos}>Clear</ActionButton>}
-                    />
-                    <SettingsRow
-                        icon={<HiTrash className="w-6 h-6" />}
-                        title="Delete All Notes"
-                        description="Permanently delete all of your notes."
-                        actionComponent={<ActionButton onClick={handleDeleteAllNotes}>Delete</ActionButton>}
-                    />
+                    <div className="p-4">
+                        <div className="grid grid-cols-2 gap-3">
+                            {/* Clear Completed Tasks Card */}
+                            <button 
+                                onClick={handleClearCompletedTodos}
+                                className="p-3 rounded-xl border border-[rgba(var(--border-primary-rgb))] hover:bg-[rgba(var(--background-hover-rgb))] transition-colors text-left"
+                            >
+                                <div className="flex items-center space-x-2 mb-2">
+                                    <TbWand className="w-4 h-4 text-[rgba(var(--accent-rgb))]" />
+                                    <p className="font-semibold text-sm text-[rgba(var(--foreground-primary-rgb))]">Clear Completed</p>
+                                </div>
+                                <p className="text-xs text-[rgba(var(--foreground-secondary-rgb))]">Remove done tasks</p>
+                            </button>
+
+                            {/* Delete All Notes Card */}
+                            <button 
+                                onClick={handleDeleteAllNotes}
+                                className="p-3 rounded-xl border border-[rgba(var(--border-primary-rgb))] hover:bg-[rgba(var(--background-hover-rgb))] transition-colors text-left"
+                            >
+                                <div className="flex items-center space-x-2 mb-2">
+                                    <HiTrash className="w-4 h-4 text-[rgba(var(--accent-rgb))]" />
+                                    <p className="font-semibold text-sm text-[rgba(var(--foreground-primary-rgb))]">Delete Notes</p>
+                                </div>
+                                <p className="text-xs text-[rgba(var(--foreground-secondary-rgb))]">Remove all notes</p>
+                            </button>
+                        </div>
+                    </div>
                 </SettingsSection>
 
                 <div className="p-4 pt-6">
-                    <h2 className="text-lg font-bold text-[rgba(var(--danger-rgb))] flex items-center space-x-2">
-                        <HiExclamation className="w-5 h-5" />
-                        <span>Danger Zone</span>
-                    </h2>
-                    <p className="text-sm text-[rgba(var(--foreground-secondary-rgb))] mt-1">These actions are destructive and irreversible. Proceed with caution.</p>
-                    <div className="mt-4 border border-[rgba(var(--danger-rgb),0.3)] bg-[rgba(var(--danger-rgb),0.05)] rounded-lg divide-y divide-[rgba(var(--danger-rgb),0.2)]">
-                        <SettingsRow
-                            icon={<HiTrash className="w-6 h-6 text-[rgba(var(--danger-rgb),0.8)]" />}
-                            title="Delete All App Data"
-                            description="Permanently erase all tasks, notes, and settings (keeps account)."
-                            actionComponent={<ActionButton onClick={handleDeleteAllData} variant="danger">Delete Data</ActionButton>}
-                        />
-                        <SettingsRow
-                            icon={<HiTrash className="w-6 h-6 text-[rgba(var(--danger-rgb),0.8)]" />}
-                            title="Delete Account"
-                            description="Permanently delete your account and all data. Cannot be undone."
-                            actionComponent={<ActionButton onClick={handleDeleteAccount} variant="danger">Delete Account</ActionButton>}
-                        />
+                    <div className="flex items-center space-x-2 mb-3">
+                        <HiExclamation className="w-4 h-4 text-[rgba(var(--danger-rgb))]" />
+                        <h2 className="text-lg font-bold text-[rgba(var(--danger-rgb))]">Danger Zone</h2>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                        {/* Delete All Data Card */}
+                        <button 
+                            onClick={handleDeleteAllData}
+                            className="p-3 rounded-xl border border-[rgba(var(--danger-rgb),0.3)] hover:bg-[rgba(var(--danger-rgb),0.1)] transition-colors text-left group"
+                        >
+                            <div className="flex items-center space-x-2 mb-2">
+                                <HiTrash className="w-4 h-4 text-[rgba(var(--danger-rgb))]" />
+                                <p className="font-semibold text-sm text-[rgba(var(--foreground-primary-rgb))]">Delete All Data</p>
+                            </div>
+                            <p className="text-xs text-[rgba(var(--foreground-secondary-rgb))]">Erase tasks, notes & settings</p>
+                        </button>
+
+                        {/* Delete Account Card */}
+                        <button 
+                            onClick={handleDeleteAccount}
+                            className="p-3 rounded-xl border border-[rgba(var(--danger-rgb),0.3)] hover:bg-[rgba(var(--danger-rgb),0.1)] transition-colors text-left group"
+                        >
+                            <div className="flex items-center space-x-2 mb-2">
+                                <HiTrash className="w-4 h-4 text-[rgba(var(--danger-rgb))]" />
+                                <p className="font-semibold text-sm text-[rgba(var(--foreground-primary-rgb))]">Delete Account</p>
+                            </div>
+                            <p className="text-xs text-[rgba(var(--foreground-secondary-rgb))]">Permanently remove account</p>
+                        </button>
                     </div>
                 </div>
 
