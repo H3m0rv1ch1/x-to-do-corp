@@ -28,8 +28,8 @@ const RightSidebar: React.FC = () => {
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchQuery(e.target.value);
-    if(e.target.value.trim() !== ''){
-        setPage('home'); // Switch to home view to show search results
+    if (e.target.value.trim() !== '') {
+      setPage('home'); // Switch to home view to show search results
     }
   }
 
@@ -56,8 +56,8 @@ const RightSidebar: React.FC = () => {
             tasksToShow.map((task) => (
               <div key={task.id} className="group cursor-pointer rounded-lg -m-2 p-2 hover:bg-[rgba(var(--foreground-primary-rgb),0.05)] transition-colors duration-200" onClick={handleShowMore}>
                 <div className="flex justify-between items-center">
-                    <p className="text-[rgba(var(--foreground-secondary-rgb))] text-sm">{task.isImportant ? 'High Priority' : 'Upcoming'}</p>
-                    {task.isImportant && <HiStar className="w-4 h-4 text-[rgba(var(--warning-rgb))]" />}
+                  <p className="text-[rgba(var(--foreground-secondary-rgb))] text-sm">{task.isImportant ? 'High Priority' : 'Upcoming'}</p>
+                  {task.isImportant && <HiStar className="w-4 h-4 text-[rgba(var(--warning-rgb))]" />}
                 </div>
                 <p className="font-bold text-[rgba(var(--foreground-primary-rgb))] group-hover:underline truncate">{task.text}</p>
               </div>
@@ -87,15 +87,17 @@ const RightSidebar: React.FC = () => {
       </button>
 
       <DeveloperPromo />
-      
-       <footer className="text-xs text-[rgba(var(--foreground-secondary-rgb))] mt-4 space-x-2">
-            <a href="#" className="hover:underline">Terms of Service</a>
-            <a href="#" className="hover:underline">Privacy Policy</a>
-            <a href="#" className="hover:underline">Cookie Policy</a>
-            <a href="#" className="hover:underline">Accessibility</a>
-            <a href="#" className="hover:underline">Ads info</a>
-            <span>© {new Date().getFullYear()} X To-Do Corp</span>
-        </footer>
+
+      <footer className="text-[12px] text-[rgba(var(--foreground-secondary-rgb))] mt-6 mb-4">
+        <div className="flex flex-wrap gap-x-3 gap-y-1">
+          <a href="#" className="hover:underline whitespace-nowrap">Terms of Service</a>
+          <a href="#" className="hover:underline whitespace-nowrap">Privacy Policy</a>
+          <a href="#" className="hover:underline whitespace-nowrap">Cookie Policy</a>
+          <a href="#" className="hover:underline whitespace-nowrap">Accessibility</a>
+          <a href="#" className="hover:underline whitespace-nowrap">Ads info</a>
+          <span className="whitespace-nowrap">© {new Date().getFullYear()} X To-Do Corp</span>
+        </div>
+      </footer>
     </aside>
   );
 };

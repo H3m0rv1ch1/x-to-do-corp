@@ -330,7 +330,7 @@ const LandingPage: React.FC = () => {
       {/* Footer links row */}
       <div className="border-t border-[rgba(var(--border-primary-rgb))]">
         <div className="mx-auto max-w-7xl px-6 md:px-12 py-4">
-          <div className="flex flex-wrap justify-center md:justify-start gap-x-4 gap-y-2 text-[12px] text-[rgba(var(--foreground-secondary-rgb))]">
+          <div className="flex flex-wrap justify-center md:justify-start gap-x-3 gap-y-2 text-[12px] text-[rgba(var(--foreground-secondary-rgb))]">
             <a className="hover:underline whitespace-nowrap" href="#">About</a>
             <a className="hover:underline whitespace-nowrap" href="#">Download the X app</a>
             <a className="hover:underline whitespace-nowrap" href="#">Help Center</a>
