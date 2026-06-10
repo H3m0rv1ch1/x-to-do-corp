@@ -132,6 +132,7 @@ function toNoteRow(userId: string, n: Note) {
     is_pinned: n.isPinned,
     created_at: n.createdAt,
     updated_at: n.updatedAt,
+    audio_url: n.audioUrl,
   };
 }
 
@@ -143,6 +144,7 @@ function fromNoteRow(row: any): Note {
     isPinned: !!row.is_pinned,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    audioUrl: row.audio_url ?? null,
   };
 }
 

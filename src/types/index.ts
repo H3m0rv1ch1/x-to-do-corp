@@ -44,6 +44,7 @@ export interface Note {
   createdAt: string;
   updatedAt: string;
   isPinned: boolean;
+  audioUrl: string | null;
 }
 
 export interface Toast {

@@ -1,10 +1,11 @@
 // Fix: Add useMemo to react import.
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { HiArrowLeft, HiTrash } from 'react-icons/hi';
 import { MdPushPin } from 'react-icons/md';
 import { type Note } from '@/types';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useDebounce } from '@/hooks/useDebounce';
+import VoiceRecorder from './VoiceRecorder';
 
 interface NoteEditorProps {
   note: Note;
@@ -18,9 +19,13 @@ const NoteEditor: React.FC<NoteEditorProps> = ({ note, onSave, onBack, onDelete 
   const [content, setContent] = useState(note.content);
   const { handlePinNote, handleUpdateNote } = useAppContext();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  
+
   const debouncedTitle = useDebounce(title, 1000);
   const debouncedContent = useDebounce(content, 1000);
+
+  const handleAudioChange = useCallback((newAudioUrl: string | null) => {
+    handleUpdateNote({ ...note, audioUrl: newAudioUrl });
+  }, [note, handleUpdateNote]);
 
   useEffect(() => {
     setTitle(note.title);
@@ -100,6 +105,15 @@ const NoteEditor: React.FC<NoteEditorProps> = ({ note, onSave, onBack, onDelete 
                 onChange={(e) => setContent(e.target.value)}
                 className="flex-grow w-full h-full bg-transparent text-lg text-[rgba(var(--foreground-primary-rgb))] placeholder-[rgba(var(--foreground-secondary-rgb))] focus:outline-none resize-none p-4"
             />
+        </div>
+
+        {/* Voice Recorder */}
+        <div className="flex-shrink-0 px-4 pb-2">
+          <VoiceRecorder
+            noteId={note.id}
+            audioUrl={note.audioUrl}
+            onAudioChange={handleAudioChange}
+          />
         </div>
 
          <div className="flex-shrink-0 border-t border-[rgba(var(--border-primary-rgb))] p-2 px-4 text-xs text-[rgba(var(--foreground-secondary-rgb))] flex items-center justify-between">

@@ -875,7 +875,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             content: noteData.content,
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
-            isPinned: false
+            isPinned: false,
+            audioUrl: null
         };
         const newNotes = [newNote, ...notes];
         setNotes(newNotes);

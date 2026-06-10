@@ -1,313 +1,464 @@
-
+import initSqlJs, { type Database } from 'sql.js';
+import sqlWasmUrl from 'sql.js/dist/sql-wasm.wasm?url';
 import { type Todo, type Note, type UserProfile, type UnlockedAchievement } from '@/types';
 
-const DB_NAME = 'X-ToDo-DB';
-const LEGACY_DB_NAME = 'x-todo-corp-db';
-const DB_VERSION = 4; // Incremented version for offline-first schema
-const TODO_STORE = 'todos';
-const NOTE_STORE = 'notes';
-const PROFILE_STORE = 'userProfile';
-const ACHIEVEMENTS_STORE = 'unlockedAchievements';
-const KV_STORE = 'keyValue';
-const USER_STORE = 'users';
-const SYNC_QUEUE_STORE = 'sync_queue';
-const ALL_STORES = [TODO_STORE, NOTE_STORE, PROFILE_STORE, ACHIEVEMENTS_STORE, KV_STORE, USER_STORE, SYNC_QUEUE_STORE];
+// ─── OPFS paths ────────────────────────────────────────────────
+const DB_FILE = 'x-todo-db.sqlite';
+const DB_DIR = 'databases';
 
-let db: IDBDatabase;
+// ─── State ─────────────────────────────────────────────────────
+let db: Database | null = null;
+let initPromise: Promise<void> | null = null;
+let saveTimeout: ReturnType<typeof setTimeout> | null = null;
 
-const openDBWithVersion = (name: string, version?: number): Promise<IDBDatabase> => {
-  return new Promise((resolve, reject) => {
-    const request = version ? indexedDB.open(name, version) : indexedDB.open(name);
-
-    request.onerror = () => {
-      console.error('Database error:', request.error);
-      reject('Error opening database');
-    };
-
-    request.onsuccess = () => {
-      resolve(request.result);
-    };
-
-    request.onupgradeneeded = (event) => {
-      const dbInstance = (event.target as IDBOpenDBRequest).result;
-      if (!dbInstance.objectStoreNames.contains(TODO_STORE)) {
-        dbInstance.createObjectStore(TODO_STORE, { keyPath: 'id' });
-      }
-      if (!dbInstance.objectStoreNames.contains(NOTE_STORE)) {
-        dbInstance.createObjectStore(NOTE_STORE, { keyPath: 'id' });
-      }
-      if (!dbInstance.objectStoreNames.contains(PROFILE_STORE)) {
-        dbInstance.createObjectStore(PROFILE_STORE, { keyPath: 'id' });
-      }
-      if (!dbInstance.objectStoreNames.contains(ACHIEVEMENTS_STORE)) {
-        dbInstance.createObjectStore(ACHIEVEMENTS_STORE, { keyPath: 'achievementId' });
-      }
-      if (!dbInstance.objectStoreNames.contains(KV_STORE)) {
-        dbInstance.createObjectStore(KV_STORE, { keyPath: 'id' });
-      }
-      if (!dbInstance.objectStoreNames.contains(USER_STORE)) {
-        dbInstance.createObjectStore(USER_STORE, { keyPath: 'email' }); // Email as key for users
-      }
-      if (!dbInstance.objectStoreNames.contains(SYNC_QUEUE_STORE)) {
-        dbInstance.createObjectStore(SYNC_QUEUE_STORE, { keyPath: 'id', autoIncrement: true });
-      }
-    };
+// Flush pending saves before the page unloads (prevents data loss on tab close)
+if (typeof window !== 'undefined') {
+  window.addEventListener('beforeunload', () => { saveToOPFS(); });
+  // Also flush on visibility change (tab hidden / app backgrounded)
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') saveToOPFS();
   });
-};
+}
 
-const areAllStoresEmpty = async (): Promise<boolean> => {
-  if (!db) return true;
-  const stores = Array.from(db.objectStoreNames);
-  if (stores.length === 0) return true;
-  const counts = await Promise.all(
-    stores.map(
-      (storeName) =>
-        new Promise<number>((resolve, reject) => {
-          const tx = db.transaction(storeName, 'readonly');
-          const req = tx.objectStore(storeName).count();
-          req.onsuccess = () => resolve(req.result || 0);
-          req.onerror = () => reject(req.error);
-        })
-    )
-  );
-  return counts.every((c) => c === 0);
-};
+// ─── OPFS helpers ──────────────────────────────────────────────
 
-const getAllFromDB = <T>(dbInstance: IDBDatabase, storeName: string): Promise<T[]> => {
-  return new Promise((resolve, reject) => {
-    if (!Array.from(dbInstance.objectStoreNames).includes(storeName)) {
-      resolve([]);
-      return;
-    }
-    const tx = dbInstance.transaction(storeName, 'readonly');
-    const store = tx.objectStore(storeName);
-    const req = store.getAll();
-    req.onsuccess = () => resolve(req.result as T[]);
-    req.onerror = () => reject(req.error);
-  });
-};
+async function getDBDir(): Promise<FileSystemDirectoryHandle> {
+  const root = await navigator.storage.getDirectory();
+  return root.getDirectoryHandle(DB_DIR, { create: true });
+}
 
-const migrateFromLegacyIfPresent = async (): Promise<void> => {
-  // If the new DB already has data, skip migration
-  const empty = await areAllStoresEmpty();
-  if (!empty) return;
+async function getDBFileHandle(create: boolean): Promise<FileSystemFileHandle> {
+  const dir = await getDBDir();
+  return dir.getFileHandle(DB_FILE, { create });
+}
 
-  // Check if the legacy DB exists (supported in Chromium/Edge)
-  const databasesFn = (indexedDB as any).databases;
-  let legacyInfo: { name: string; version?: number } | undefined;
-  if (typeof databasesFn === 'function') {
-    try {
-      const dbs: Array<{ name: string; version?: number }> = await databasesFn();
-      legacyInfo = dbs.find((d) => d.name === LEGACY_DB_NAME);
-    } catch {
-      // ignore listing errors
-    }
+async function saveToOPFS(): Promise<void> {
+  if (!db) return;
+  try {
+    const data = db.export();
+    const fileHandle = await getDBFileHandle(true);
+    const writable = await fileHandle.createWritable();
+    await writable.write(data as unknown as FileSystemWriteChunkType);
+    await writable.close();
+  } catch (e) {
+    console.error('Failed to save database to OPFS:', e);
   }
+}
 
-  if (!legacyInfo) {
-    return;
-  }
+function scheduleSave(): void {
+  if (saveTimeout) clearTimeout(saveTimeout);
+  saveTimeout = setTimeout(() => {
+    saveTimeout = null;
+    saveToOPFS();
+  }, 300);
+}
 
-  // Open legacy DB read-only and copy data into the current DB
-  const legacyDb = await openDBWithVersion(LEGACY_DB_NAME, legacyInfo.version);
+// ─── Schema ────────────────────────────────────────────────────
 
-  const [legacyTodos, legacyNotes, legacyProfiles, legacyAchievements, legacyKV] = await Promise.all([
-    getAllFromDB<Todo>(legacyDb, TODO_STORE),
-    getAllFromDB<Note>(legacyDb, NOTE_STORE),
-    getAllFromDB<(UserProfile & { id?: string })>(legacyDb, PROFILE_STORE),
-    getAllFromDB<UnlockedAchievement>(legacyDb, ACHIEVEMENTS_STORE),
-    getAllFromDB<{ id: string; value: any }>(legacyDb, KV_STORE),
-  ]);
+function createTables(database: Database): void {
+  database.run(`
+    CREATE TABLE IF NOT EXISTS todos (
+      id TEXT PRIMARY KEY,
+      data TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS notes (
+      id TEXT PRIMARY KEY,
+      data TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS profiles (
+      id TEXT PRIMARY KEY,
+      data TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS achievements (
+      achievementId TEXT PRIMARY KEY,
+      data TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS kv (
+      id TEXT PRIMARY KEY,
+      value TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS users (
+      email TEXT PRIMARY KEY,
+      data TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS sync_queue (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      data TEXT NOT NULL
+    );
+  `);
+}
 
-  // Write into the new DB
-  const tx = db.transaction(ALL_STORES, 'readwrite');
-  const putAll = (storeName: string, items: any[]) =>
-    new Promise<void>((resolve, reject) => {
-      if (!items || items.length === 0) return resolve();
-      const store = tx.objectStore(storeName);
-      let pending = items.length;
-      items.forEach((item) => {
-        // Normalize profile key
-        if (storeName === PROFILE_STORE) {
-          item = { ...item, id: PROFILE_KEY };
-        }
-        const req = store.put(item);
-        req.onsuccess = () => {
-          pending -= 1;
-          if (pending === 0) resolve();
-        };
+// ─── IndexedDB to SQLite migration ─────────────────────────────
+
+async function migrateFromIndexedDB(): Promise<boolean> {
+  try {
+    const legacyDBs = await indexedDB.databases?.();
+    const legacyDB = legacyDBs?.find(
+      (d) => d.name === 'X-ToDo-DB' || d.name === 'x-todo-corp-db'
+    );
+    if (!legacyDB) return false;
+
+    const readIDB = <T>(dbName: string, storeName: string): Promise<T[]> => {
+      return new Promise((resolve, reject) => {
+        const req = indexedDB.open(dbName);
         req.onerror = () => reject(req.error);
+        req.onsuccess = () => {
+          const idb = req.result;
+          const tx = idb.transaction(storeName, 'readonly');
+          const store = tx.objectStore(storeName);
+          const getReq = store.getAll();
+          getReq.onsuccess = () => resolve(getReq.result as T[]);
+          getReq.onerror = () => reject(getReq.error);
+        };
       });
-      if (items.length === 0) resolve();
+    };
+
+    let dbName = 'X-ToDo-DB';
+    let todos: Todo[] = [];
+    let notes: any[] = [];
+    let profiles: any[] = [];
+    let achievements: any[] = [];
+
+    try {
+      [todos, notes, profiles, achievements] = await Promise.all([
+        readIDB<Todo>(dbName, 'todos').catch(() => [] as Todo[]),
+        readIDB<any>(dbName, 'notes').catch(() => [] as any[]),
+        readIDB<any>(dbName, 'userProfile').catch(() => [] as any[]),
+        readIDB<any>(dbName, 'unlockedAchievements').catch(() => [] as any[]),
+      ]);
+    } catch {
+      dbName = 'x-todo-corp-db';
+      try {
+        [todos, notes, profiles, achievements] = await Promise.all([
+          readIDB<Todo>(dbName, 'todos').catch(() => [] as Todo[]),
+          readIDB<any>(dbName, 'notes').catch(() => [] as any[]),
+          readIDB<any>(dbName, 'userProfile').catch(() => [] as any[]),
+          readIDB<any>(dbName, 'unlockedAchievements').catch(() => [] as any[]),
+        ]);
+      } catch {
+        return false;
+      }
+    }
+
+    if (todos.length === 0 && notes.length === 0 && profiles.length === 0 && achievements.length === 0) {
+      return false;
+    }
+
+    console.log(`Migrating from IndexedDB: ${todos.length} todos, ${notes.length} notes`);
+
+    let kvItems: { id: string; value: any }[] = [];
+    let users: any[] = [];
+    let syncQueue: any[] = [];
+    try {
+      [kvItems, users, syncQueue] = await Promise.all([
+        readIDB<{ id: string; value: any }>(dbName, 'keyValue').catch(() => []),
+        readIDB<any>(dbName, 'users').catch(() => []),
+        readIDB<any>(dbName, 'sync_queue').catch(() => []),
+      ]);
+    } catch { /* ignore */ }
+
+    const runAll = (sql: string, items: any[], paramFn: (item: any) => any[]) => {
+      for (const item of items) {
+        try { db!.run(sql, paramFn(item)); } catch (e) { console.error('Migration insert error:', e); }
+      }
+    };
+
+    runAll('INSERT OR REPLACE INTO todos (id, data) VALUES (?, ?)', todos, (t) => [t.id, JSON.stringify(t)]);
+    runAll('INSERT OR REPLACE INTO notes (id, data) VALUES (?, ?)', notes, (n) => [n.id, JSON.stringify(n)]);
+    runAll('INSERT OR REPLACE INTO profiles (id, data) VALUES (?, ?)', profiles, (p) => [p.id || 'main_profile', JSON.stringify(p)]);
+    runAll('INSERT OR REPLACE INTO achievements (achievementId, data) VALUES (?, ?)', achievements, (a) => [a.achievementId, JSON.stringify(a)]);
+    runAll('INSERT OR REPLACE INTO kv (id, value) VALUES (?, ?)', kvItems, (k) => [k.id, JSON.stringify(k.value)]);
+    runAll('INSERT OR REPLACE INTO users (email, data) VALUES (?, ?)', users, (u) => [u.email, JSON.stringify(u)]);
+    runAll('INSERT OR REPLACE INTO sync_queue (id, data) VALUES (?, ?)', syncQueue, (s) => [s.id ?? null, JSON.stringify(s)]);
+
+    await saveToOPFS();
+    console.log('Migration from IndexedDB to SQLite complete!');
+    return true;
+  } catch (e) {
+    console.error('Migration from IndexedDB failed:', e);
+    return false;
+  }
+}
+
+// ─── Init ──────────────────────────────────────────────────────
+
+async function initDB(): Promise<Database> {
+  if (db) return db;
+  if (initPromise) { await initPromise; return db!; }
+
+  initPromise = (async () => {
+    const SQL = await initSqlJs({
+      locateFile: (file: string) => {
+        if (file.endsWith('.wasm')) return sqlWasmUrl;
+        return file;
+      }
     });
-
-  await Promise.all([
-    putAll(TODO_STORE, legacyTodos),
-    putAll(NOTE_STORE, legacyNotes),
-    putAll(PROFILE_STORE, legacyProfiles),
-    putAll(ACHIEVEMENTS_STORE, legacyAchievements),
-    putAll(KV_STORE, legacyKV),
-  ]);
-};
-
-const initDB = (): Promise<IDBDatabase> => {
-  return new Promise((resolve, reject) => {
-    if (db) return resolve(db);
-
-    const request = indexedDB.open(DB_NAME, DB_VERSION);
-
-    request.onerror = () => {
-      console.error('Database error:', request.error);
-      reject('Error opening database');
-    };
-
-    request.onsuccess = () => {
-      db = request.result;
-      migrateFromLegacyIfPresent()
-        .then(() => resolve(db))
-        .catch(() => resolve(db));
-    };
-
-    request.onupgradeneeded = (event) => {
-      const dbInstance = (event.target as IDBOpenDBRequest).result;
-      if (!dbInstance.objectStoreNames.contains(TODO_STORE)) {
-        dbInstance.createObjectStore(TODO_STORE, { keyPath: 'id' });
+    let loaded = false;
+    try {
+      const fileHandle = await getDBFileHandle(false);
+      const file = await fileHandle.getFile();
+      if (file.size > 0) {
+        const buffer = await file.arrayBuffer();
+        db = new SQL.Database(new Uint8Array(buffer));
+        createTables(db);
+        loaded = true;
       }
-      if (!dbInstance.objectStoreNames.contains(NOTE_STORE)) {
-        dbInstance.createObjectStore(NOTE_STORE, { keyPath: 'id' });
-      }
-      if (!dbInstance.objectStoreNames.contains(PROFILE_STORE)) {
-        dbInstance.createObjectStore(PROFILE_STORE, { keyPath: 'id' });
-      }
-      if (!dbInstance.objectStoreNames.contains(ACHIEVEMENTS_STORE)) {
-        dbInstance.createObjectStore(ACHIEVEMENTS_STORE, { keyPath: 'achievementId' });
-      }
-      if (!dbInstance.objectStoreNames.contains(KV_STORE)) {
-        dbInstance.createObjectStore(KV_STORE, { keyPath: 'id' });
-      }
-      if (!dbInstance.objectStoreNames.contains(USER_STORE)) {
-        dbInstance.createObjectStore(USER_STORE, { keyPath: 'email' });
-      }
-      if (!dbInstance.objectStoreNames.contains(SYNC_QUEUE_STORE)) {
-        dbInstance.createObjectStore(SYNC_QUEUE_STORE, { keyPath: 'id', autoIncrement: true });
-      }
-    };
-  });
+    } catch { /* expected on first launch */ }
+
+    if (!loaded) {
+      db = new SQL.Database();
+      createTables(db);
+      const migrated = await migrateFromIndexedDB();
+      if (!migrated) await saveToOPFS();
+    }
+  })();
+
+  await initPromise;
+  return db!;
+}
+
+// ─── Generic CRUD helpers ──────────────────────────────────────
+
+function getAllFromTable<T>(table: string): T[] {
+  if (!db) return [];
+  try {
+    const results = db.exec(`SELECT data FROM ${table}`);
+    if (!results.length || !results[0].values.length) return [];
+    return results[0].values.map((row: any[]) => JSON.parse(row[0] as string) as T);
+  } catch { return []; }
+}
+
+function getFromTable<T>(table: string, idCol: string, id: string): T | null {
+  if (!db) return null;
+  try {
+    const results = db.exec(`SELECT data FROM ${table} WHERE ${idCol} = ?`, [id]);
+    if (!results.length || !results[0].values.length) return null;
+    return JSON.parse(results[0].values[0][0] as string) as T;
+  } catch { return null; }
+}
+
+function putInTable(table: string, idCol: string, id: string, data: any): void {
+  if (!db) return;
+  try {
+    db.run(`INSERT OR REPLACE INTO ${table} (${idCol}, data) VALUES (?, ?)`, [id, JSON.stringify(data)]);
+    scheduleSave();
+  } catch (e) { console.error(`putInTable ${table} error:`, e); }
+}
+
+function deleteFromTable(table: string, idCol: string, id: string): void {
+  if (!db) return;
+  try { db.run(`DELETE FROM ${table} WHERE ${idCol} = ?`, [id]); scheduleSave(); }
+  catch (e) { console.error(`deleteFromTable ${table} error:`, e); }
+}
+
+function clearTable(table: string): void {
+  if (!db) return;
+  try { db.run(`DELETE FROM ${table}`); scheduleSave(); }
+  catch (e) { console.error(`clearTable ${table} error:`, e); }
+}
+
+// ─── Todo functions ────────────────────────────────────────────
+
+export const getTodos = async (): Promise<Todo[]> => {
+  await initDB();
+  return getAllFromTable<Todo>('todos');
 };
 
-const getStore = (storeName: string, mode: IDBTransactionMode) => {
-  const tx = db.transaction(storeName, mode);
-  return tx.objectStore(storeName);
+export const putTodo = async (todo: Todo): Promise<void> => {
+  await initDB();
+  putInTable('todos', 'id', todo.id, todo);
 };
 
-const getAll = <T>(storeName: string): Promise<T[]> => {
-  return new Promise(async (resolve, reject) => {
-    await initDB();
-    const store = getStore(storeName, 'readonly');
-    const request = store.getAll();
-    request.onsuccess = () => resolve(request.result as T[]);
-    request.onerror = () => reject(request.error);
-  });
+export const deleteTodo = async (id: string): Promise<void> => {
+  await initDB();
+  deleteFromTable('todos', 'id', id);
 };
 
-const get = <T>(storeName: string, id: IDBValidKey): Promise<T | undefined> => {
-  return new Promise(async (resolve, reject) => {
-    await initDB();
-    const store = getStore(storeName, 'readonly');
-    const request = store.get(id);
-    request.onsuccess = () => resolve(request.result as T);
-    request.onerror = () => reject(request.error);
-  });
+export const clearTodos = async (): Promise<void> => {
+  await initDB();
+  clearTable('todos');
 };
 
-const put = <T>(storeName: string, item: T): Promise<void> => {
-  return new Promise(async (resolve, reject) => {
-    await initDB();
-    const store = getStore(storeName, 'readwrite');
-    const request = store.put(item);
-    request.onsuccess = () => resolve();
-    request.onerror = () => reject(request.error);
-  });
+// ─── Note functions ────────────────────────────────────────────
+
+export const getNotes = async (): Promise<Note[]> => {
+  await initDB();
+  return getAllFromTable<Note>('notes');
 };
 
-const deleteItem = (storeName: string, id: IDBValidKey): Promise<void> => {
-  return new Promise(async (resolve, reject) => {
-    await initDB();
-    const store = getStore(storeName, 'readwrite');
-    const request = store.delete(id);
-    request.onsuccess = () => resolve();
-    request.onerror = () => reject(request.error);
-  });
+export const putNote = async (note: Note): Promise<void> => {
+  await initDB();
+  putInTable('notes', 'id', note.id, note);
 };
 
-const clearStore = (storeName: string): Promise<void> => {
-  return new Promise(async (resolve, reject) => {
-    await initDB();
-    const store = getStore(storeName, 'readwrite');
-    const request = store.clear();
-    request.onsuccess = () => resolve();
-    request.onerror = () => reject(request.error);
-  });
+export const deleteNote = async (id: string): Promise<void> => {
+  await initDB();
+  deleteFromTable('notes', 'id', id);
 };
 
+export const clearNotes = async (): Promise<void> => {
+  await initDB();
+  clearTable('notes');
+};
 
-// To-Do specific functions
-export const getTodos = () => getAll<Todo>(TODO_STORE);
-export const putTodo = (todo: Todo) => put<Todo>(TODO_STORE, todo);
-export const deleteTodo = (id: string) => deleteItem(TODO_STORE, id);
-export const clearTodos = () => clearStore(TODO_STORE);
+// ─── Achievement functions ─────────────────────────────────────
 
-// Note specific functions
-export const getNotes = () => getAll<Note>(NOTE_STORE);
-export const putNote = (note: Note) => put<Note>(NOTE_STORE, note);
-export const deleteNote = (id: string) => deleteItem(NOTE_STORE, id);
-export const clearNotes = () => clearStore(NOTE_STORE);
+export const getUnlockedAchievements = async (): Promise<UnlockedAchievement[]> => {
+  await initDB();
+  return getAllFromTable<UnlockedAchievement>('achievements');
+};
 
-// Achievement specific functions
-export const getUnlockedAchievements = () => getAll<UnlockedAchievement>(ACHIEVEMENTS_STORE);
-export const putUnlockedAchievement = (achievement: UnlockedAchievement) => put<UnlockedAchievement>(ACHIEVEMENTS_STORE, achievement);
+export const putUnlockedAchievement = async (achievement: UnlockedAchievement): Promise<void> => {
+  await initDB();
+  putInTable('achievements', 'achievementId', achievement.achievementId, achievement);
+};
 
+// ─── Profile functions ─────────────────────────────────────────
 
-// Profile specific functions
 const PROFILE_KEY = 'main_profile';
 
 export const getUserProfile = async (): Promise<UserProfile | null> => {
-  const profile = await get<UserProfile & { id: string }>(PROFILE_STORE, PROFILE_KEY);
+  await initDB();
+  const profile = getFromTable<UserProfile & { id?: string }>('profiles', 'id', PROFILE_KEY);
   if (profile) {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { id, ...rest } = profile;
+    const { id: _, ...rest } = profile as UserProfile & { id: string };
+    return rest as UserProfile;
+  }
+  const all = getAllFromTable<any>('profiles');
+  if (all.length > 0) {
+    const { id: _, ...rest } = all[0];
     return rest as UserProfile;
   }
   return null;
-}
-
-export const saveUserProfile = (profile: UserProfile) => {
-  return put<UserProfile & { id: string }>(PROFILE_STORE, { ...profile, id: PROFILE_KEY });
 };
 
-// Key-Value Store functions
-export const getValue = (id: string) => get<{ id: string, value: any }>(KV_STORE, id);
-export const putValue = (id: string, value: any) => put(KV_STORE, { id, value });
+export const saveUserProfile = async (profile: UserProfile): Promise<void> => {
+  await initDB();
+  putInTable('profiles', 'id', PROFILE_KEY, profile);
+};
 
+// ─── KV Store ──────────────────────────────────────────────────
 
-// User specific functions
-export const getUser = (email: string) => get<any>(USER_STORE, email);
-export const putUser = (user: any) => put<any>(USER_STORE, user);
+export const getValue = async (key: string): Promise<{ id: string; value: any } | undefined> => {
+  await initDB();
+  if (!db) return undefined;
+  try {
+    const results = db.exec('SELECT value FROM kv WHERE id = ?', [key]);
+    if (!results.length || !results[0].values.length) return undefined;
+    return { id: key, value: JSON.parse(results[0].values[0][0] as string) };
+  } catch { return undefined; }
+};
 
-// Sync Queue functions
-export const addToSyncQueue = (item: any) => put<any>(SYNC_QUEUE_STORE, item);
-export const getSyncQueue = () => getAll<any>(SYNC_QUEUE_STORE);
-export const removeFromSyncQueue = (id: number) => deleteItem(SYNC_QUEUE_STORE, id);
+export const putValue = async (key: string, value: any): Promise<void> => {
+  await initDB();
+  if (!db) return;
+  try {
+    db.run('INSERT OR REPLACE INTO kv (id, value) VALUES (?, ?)', [key, JSON.stringify(value)]);
+    scheduleSave();
+  } catch (e) { console.error('putValue error:', e); }
+};
 
-// General DB functions
+// ─── User functions ────────────────────────────────────────────
+
+export const getUser = async (email: string): Promise<any | undefined> => {
+  await initDB();
+  const user = getFromTable<any>('users', 'email', email);
+  return user || undefined;
+};
+
+export const putUser = async (user: any): Promise<void> => {
+  await initDB();
+  putInTable('users', 'email', user.email, user);
+};
+
+// ─── Sync Queue ────────────────────────────────────────────────
+
+export const addToSyncQueue = async (item: any): Promise<void> => {
+  await initDB();
+  if (!db) return;
+  try {
+    db.run('INSERT INTO sync_queue (data) VALUES (?)', [JSON.stringify(item)]);
+    scheduleSave();
+  } catch (e) { console.error('addToSyncQueue error:', e); }
+};
+
+export const getSyncQueue = async (): Promise<any[]> => {
+  await initDB();
+  if (!db) return [];
+  try {
+    const results = db.exec('SELECT id, data FROM sync_queue ORDER BY id ASC');
+    if (!results.length || !results[0].values.length) return [];
+    return results[0].values.map((row: any[]) => {
+      const item = JSON.parse(row[1] as string);
+      item.id = row[0];
+      return item;
+    });
+  } catch { return []; }
+};
+
+export const removeFromSyncQueue = async (id: number): Promise<void> => {
+  await initDB();
+  if (!db) return;
+  try { db.run('DELETE FROM sync_queue WHERE id = ?', [id]); scheduleSave(); }
+  catch (e) { console.error('removeFromSyncQueue error:', e); }
+};
+
+// ─── General ───────────────────────────────────────────────────
+
 export const clearAllData = async (): Promise<void> => {
   await initDB();
-  const transaction = db.transaction(ALL_STORES, 'readwrite');
-  await Promise.all(ALL_STORES.map(storeName => {
-    return new Promise<void>((resolve, reject) => {
-      const request = transaction.objectStore(storeName).clear();
-      request.onsuccess = () => resolve();
-      request.onerror = () => reject(request.error);
-    });
-  }));
+  // Clean up audio files from OPFS
+  try {
+    const audioDir = await getAudioDir();
+    const entries: string[] = [];
+    for await (const [name] of (audioDir as any).entries()) {
+      entries.push(name);
+    }
+    for (const name of entries) {
+      try { await audioDir.removeEntry(name); } catch { /* ignore */ }
+    }
+  } catch { /* ignore - audio dir might not exist */ }
+
+  const tables = ['todos', 'notes', 'profiles', 'achievements', 'kv', 'users', 'sync_queue'];
+  for (const table of tables) {
+    try { db!.run(`DELETE FROM ${table}`); } catch { /* ignore */ }
+  }
+  await saveToOPFS();
+};
+
+// ─── OPFS audio blob helpers (voice notes) ─────────────────────
+
+const AUDIO_DIR = 'audio';
+
+async function getAudioDir(): Promise<FileSystemDirectoryHandle> {
+  const root = await navigator.storage.getDirectory();
+  return root.getDirectoryHandle(AUDIO_DIR, { create: true });
+}
+
+export const saveAudioBlob = async (noteId: string, blob: Blob): Promise<string> => {
+  const dir = await getAudioDir();
+  const fileName = `${noteId}.webm`;
+  const fileHandle = await dir.getFileHandle(fileName, { create: true });
+  const writable = await fileHandle.createWritable();
+  await writable.write(blob);
+  await writable.close();
+  return `opfs-audio://${noteId}`;
+};
+
+export const loadAudioBlob = async (noteId: string): Promise<string | null> => {
+  try {
+    const dir = await getAudioDir();
+    const fileName = `${noteId}.webm`;
+    const fileHandle = await dir.getFileHandle(fileName);
+    const file = await fileHandle.getFile();
+    return URL.createObjectURL(file);
+  } catch { return null; }
+};
+
+export const deleteAudioBlob = async (noteId: string): Promise<void> => {
+  try {
+    const dir = await getAudioDir();
+    const fileName = `${noteId}.webm`;
+    await dir.removeEntry(fileName);
+  } catch { /* no-op */ }
 };
