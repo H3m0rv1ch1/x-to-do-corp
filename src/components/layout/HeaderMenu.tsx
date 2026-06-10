@@ -8,7 +8,7 @@ import PortalMenu from '@/components/ui/PortalMenu';
 interface HeaderMenuProps {
   isOpen: boolean;
   onClose: () => void;
-  anchorRef: React.RefObject<HTMLElement>;
+  anchorRef: React.RefObject<HTMLElement | null>;
 }
 
 const HeaderMenu: React.FC<HeaderMenuProps> = ({ isOpen, onClose, anchorRef }) => {

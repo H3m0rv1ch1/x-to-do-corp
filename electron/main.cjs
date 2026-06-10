@@ -28,11 +28,6 @@ function createWindow() {
     mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
   }
 
-  // Debug: log when page finishes loading
-  mainWindow.webContents.on('did-finish-load', () => {
-    console.log('Page loaded successfully');
-  });
-
   mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
     console.error('Failed to load:', errorCode, errorDescription);
   });

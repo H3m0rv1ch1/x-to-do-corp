@@ -8,7 +8,6 @@ import { AuthProvider } from '@/contexts/AuthContext';
 import { useAuth } from '@/hooks/useAuth';
 import ForgotPasswordPage from '@/components/auth/ForgotPasswordPage';
 import LandingPage from '@/components/auth/LandingPage';
-import SplashPage from './components/auth/SplashPage';
 import { useAppContext } from '@/hooks/useAppContext';
 import { FaXTwitter } from 'react-icons/fa6';
 
@@ -49,12 +48,12 @@ const AppContent: React.FC = () => {
   useEffect(() => {
     if (!isAuthenticated) {
       // Gate the app behind the Login page for unauthenticated users
-      if (page !== 'forgot' && page !== 'landing' && page !== 'login') {
-        setPage('landing');
+      if (page !== 'forgot' && page !== 'login') {
+        setPage('login');
       }
     } else {
       // Redirect authenticated users away from auth pages
-      if (page === 'forgot' || page === 'landing' || page === 'login') {
+      if (page === 'forgot' || page === 'login') {
         setPage('home');
       }
     }
@@ -181,8 +180,6 @@ const AppContent: React.FC = () => {
             <CalendarPage />
           </Suspense>
         );
-      case 'landing':
-        return <SplashPage />;
       case 'login':
         return <LandingPage />;
       case 'forgot':
@@ -198,7 +195,7 @@ const AppContent: React.FC = () => {
   };
 
   // Render minimal layout for auth pages to avoid sidebars/nav
-  if (!isAuthenticated && (page === 'landing' || page === 'forgot' || page === 'login')) {
+  if (!isAuthenticated && (page === 'forgot' || page === 'login')) {
     return (
       <div className="bg-[rgba(var(--background-primary-rgb))] min-h-screen text-[rgba(var(--foreground-primary-rgb))] font-sans">
         {renderPage()}

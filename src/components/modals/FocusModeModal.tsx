@@ -50,6 +50,11 @@ const FocusModeModal: React.FC = () => {
     // Track menu state
     const [trackMenuFor, setTrackMenuFor] = useState<AmbientSound | null>(null);
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
+    const anchorRef = useRef<HTMLElement | null>(null);
+
+    useEffect(() => {
+        anchorRef.current = anchorEl;
+    }, [anchorEl]);
 
     const resetTimer = useCallback(() => {
         const duration = (mode === 'focus' ? focusSettings.focusDuration : mode === 'shortBreak' ? focusSettings.shortBreakDuration : focusSettings.longBreakDuration) * 60;
@@ -322,7 +327,7 @@ const FocusModeModal: React.FC = () => {
                                         </div>
                                         {isActive && trackMenuFor === key && (
                                             <PortalMenu
-                                                anchorRef={{ current: anchorEl }}
+                                                anchorRef={anchorRef}
                                                 isOpen={true}
                                                 onClose={() => setTrackMenuFor(null)}
                                                 preferredPosition="top-left"

@@ -4,7 +4,7 @@ import { createPortal } from 'react-dom';
 export type MenuPosition = 'bottom-left' | 'bottom-right' | 'top-left' | 'top-right' | 'right-start' | 'right-end' | 'left-start' | 'left-end';
 
 interface PortalMenuProps {
-  anchorRef: React.RefObject<HTMLElement>;
+  anchorRef: React.RefObject<HTMLElement | null>;
   isOpen: boolean;
   children: React.ReactNode;
   preferredPosition?: MenuPosition;

@@ -95,6 +95,6 @@ export interface UnlockedAchievement {
   unlockedAt: string;
 }
 
-export type Page = 'home' | 'profile' | 'notes' | 'achievements' | 'settings' | 'calendar' | 'landing' | 'login' | 'signup' | 'forgot';
+export type Page = 'home' | 'profile' | 'notes' | 'achievements' | 'settings' | 'calendar' | 'login' | 'signup' | 'forgot';
 
 export type TagColorMap = { [key: string]: { background: string; foreground: string } };

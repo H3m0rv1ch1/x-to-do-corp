@@ -1,4 +1,3 @@
-
 import { type Todo, type Note, type Achievement, type UnlockedAchievement, type UserProfile } from '@/types';
 import { HiPencil, HiCheck, HiDocumentText, HiStar, HiPhotograph, HiCalendar, HiFire, HiCheckCircle, HiExclamation, HiFlag, HiHashtag, HiUser } from 'react-icons/hi';
 import { HiTrophy } from 'react-icons/hi2';
@@ -15,7 +14,6 @@ export type AchievementStats = {
 };
 
 export const achievementsList: Achievement[] = [
-  // Task Management
   {
     id: 'first_task',
     title: 'Task Initiator',
@@ -28,13 +26,13 @@ export const achievementsList: Achievement[] = [
   {
     id: 'ten_tasks',
     title: 'Task Manager',
-    description: 'You\'ve created 10 tasks. Getting organized!',
+    description: "You've created 10 tasks. Getting organized!",
     icon: HiPencil,
     category: 'Task Management',
     tier: 'Silver',
     progress: ({ todos }) => ({ current: todos.length, target: 10 }),
   },
-   {
+  {
     id: 'fifty_tasks',
     title: 'Task Master',
     description: '50 tasks created. You mean business.',
@@ -52,7 +50,6 @@ export const achievementsList: Achievement[] = [
     tier: 'Gold',
     progress: ({ todos }) => ({ current: todos.length, target: 100 }),
   },
-  // Task Completion
   {
     id: 'first_completed',
     title: 'Getting Things Done',
@@ -65,7 +62,7 @@ export const achievementsList: Achievement[] = [
   {
     id: 'ten_completed',
     title: 'Productivity Pro',
-    description: 'You\'ve completed 10 tasks. Keep it going!',
+    description: "You've completed 10 tasks. Keep it going!",
     icon: HiCheck,
     category: 'Task Completion',
     tier: 'Silver',
@@ -113,7 +110,6 @@ export const achievementsList: Achievement[] = [
     category: 'Task Completion',
     tier: 'Silver',
   },
-  // Productivity Streaks
   {
     id: 'perfect_week',
     title: 'Perfect Week',
@@ -130,7 +126,6 @@ export const achievementsList: Achievement[] = [
     category: 'Productivity Streaks',
     tier: 'Gold',
   },
-  // Note Taking
   {
     id: 'note_taker',
     title: 'Note Taker',
@@ -158,7 +153,6 @@ export const achievementsList: Achievement[] = [
     tier: 'Gold',
     progress: ({ notes }) => ({ current: notes.length, target: 25 }),
   },
-  // Feature Explorer
   {
     id: 'important_mission',
     title: 'Important Mission',
@@ -261,18 +255,18 @@ const conditions: Record<Achievement['id'], Condition> = {
   priority_one: ({ todos }) => todos.some(t => t.priority === 'high'),
   eternal_return: ({ todos }) => todos.some(t => !!t.recurrenceRule),
   tag_organizer: ({ todos }) => todos.some(t => t.tags.length > 0),
-  personal_touch: (stats) => {
+  personal_touch: (stats): boolean => {
     if (!stats.userProfile || !stats.oldUserProfile) return false;
-    const hasNewAvatar = stats.userProfile.avatarUrl && stats.userProfile.avatarUrl !== stats.oldUserProfile.avatarUrl;
-    const hasNewBanner = stats.userProfile.bannerUrl && stats.userProfile.bannerUrl !== stats.oldUserProfile.bannerUrl;
-    const hasNewOrgAvatar = stats.userProfile.organizationAvatarUrl && stats.userProfile.organizationAvatarUrl !== stats.oldUserProfile.organizationAvatarUrl;
+    const hasNewAvatar = !!(stats.userProfile.avatarUrl && stats.userProfile.avatarUrl !== stats.oldUserProfile.avatarUrl);
+    const hasNewBanner = !!(stats.userProfile.bannerUrl && stats.userProfile.bannerUrl !== stats.oldUserProfile.bannerUrl);
+    const hasNewOrgAvatar = !!(stats.userProfile.organizationAvatarUrl && stats.userProfile.organizationAvatarUrl !== stats.oldUserProfile.organizationAvatarUrl);
     return hasNewAvatar || hasNewBanner || hasNewOrgAvatar;
   },
-  colorful_personality: (stats) => {
+  colorful_personality: (stats): boolean => {
     if (!stats.accent || !stats.oldAccent) return false;
-    return stats.accent !== stats.oldAccent && stats.oldAccent === 'sky'; // Only trigger on first change from default
+    return stats.accent !== stats.oldAccent && stats.oldAccent === 'sky';
   },
-  perfect_week: ({ todos }) => {
+  perfect_week: ({ todos }): boolean => {
     const completedDates = new Set<string>();
     todos.forEach(todo => {
       if (todo.completed && todo.completedAt) {
@@ -289,7 +283,7 @@ const conditions: Record<Achievement['id'], Condition> = {
     }
     return true;
   },
-  perfect_month: ({ todos }) => {
+  perfect_month: ({ todos }): boolean => {
     const completedDates = new Set<string>();
     todos.forEach(todo => {
       if (todo.completed && todo.completedAt) {
@@ -306,13 +300,13 @@ const conditions: Record<Achievement['id'], Condition> = {
     }
     return true;
   },
-  on_the_dot: ({ todos }) => {
-    return todos.some(t => t.completed && t.dueDate && t.completedAt && t.dueDate === t.completedAt.split('T')[0]);
+  on_the_dot: ({ todos }): boolean => {
+    return todos.some(t => !!(t.completed && t.dueDate && t.completedAt && t.dueDate === t.completedAt.split('T')[0]));
   },
-  overdue_crusher: ({ todos }) => {
-    return todos.some(t => t.completed && t.dueDate && t.completedAt && t.dueDate < t.completedAt.split('T')[0]);
+  overdue_crusher: ({ todos }): boolean => {
+    return todos.some(t => !!(t.completed && t.dueDate && t.completedAt && t.dueDate < t.completedAt.split('T')[0]));
   },
-  daily_dominator: ({ todos }) => {
+  daily_dominator: ({ todos }): boolean => {
     const tasksByDueDate = todos.reduce<Record<string, Todo[]>>((acc, task) => {
         if (task.dueDate) {
             if (!acc[task.dueDate]) acc[task.dueDate] = [];

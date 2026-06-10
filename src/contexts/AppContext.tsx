@@ -268,8 +268,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const pageToPath = useCallback((p: Page): string => {
         switch (p) {
             case 'home': return '/app';
-            case 'landing': return '/';
-            case 'login': return '/login';
+            case 'login': return '/';
             case 'signup': return '/signup';
             case 'forgot': return '/forgot';
             case 'profile': return '/profile';
@@ -283,7 +282,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     const pathToPage = useCallback((path: string): Page => {
         switch (path) {
-            case '/': return 'landing';
+            case '/': return 'login';
             case '/app': return 'home';
             case '/login': return 'login';
             case '/signup': return 'signup';
@@ -436,7 +435,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             case 'achievements': return 'Achievements';
             case 'settings': return 'Settings';
             case 'calendar': return 'Calendar';
-            case 'landing': return 'Welcome';
+
             case 'login': return 'Sign in';
             case 'signup': return 'Create account';
             case 'forgot': return 'Reset password';
@@ -849,8 +848,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                     return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
                 case 'dueDate': {
                     const parseLocalDate = (d?: string) => d ? new Date(`${d}T00:00:00`).getTime() : null;
-                    const aTime = parseLocalDate(a.dueDate);
-                    const bTime = parseLocalDate(b.dueDate);
+                    const aTime = parseLocalDate(a.dueDate ?? undefined);
+                    const bTime = parseLocalDate(b.dueDate ?? undefined);
                     if (aTime !== null && bTime !== null) return aTime - bTime;
                     if (aTime !== null) return -1;
                     if (bTime !== null) return 1;
@@ -1040,11 +1039,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                         name: newProfile.name,
                         username: newProfile.username,
                         bio: newProfile.bio,
-                        avatar_url: newProfile.avatarUrl,
-                        banner_url: newProfile.bannerUrl,
+                        avatar_url: newProfile.avatarUrl ?? undefined,
+                        banner_url: newProfile.bannerUrl ?? undefined,
                         verification_type: newProfile.verificationType,
-                        organization: newProfile.organization,
-                        organization_avatar_url: newProfile.organizationAvatarUrl
+                        organization: newProfile.organization ?? undefined,
+                        organization_avatar_url: newProfile.organizationAvatarUrl ?? undefined
                     }
                 });
                 if (navigator.onLine) syncService.pushChanges();

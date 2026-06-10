@@ -23,21 +23,23 @@ export default defineConfig(({ mode }) => {
       }
     },
     build: {
-      // Optimize build output
       target: 'esnext',
-      minify: 'esbuild', // Use esbuild (included with Vite)
+      minify: 'esbuild',
       rollupOptions: {
         output: {
-          // Manual code splitting for better caching
-          manualChunks: {
-            // Vendor chunks
-            'react-vendor': ['react', 'react-dom'],
-            'supabase': ['@supabase/supabase-js'],
-            'icons': ['react-icons'],
-          }
+          manualChunks(id: string) {
+            if (id.includes('node_modules/react-dom') || id.includes('node_modules/react/')) {
+              return 'react-vendor';
+            }
+            if (id.includes('node_modules/@supabase/')) {
+              return 'supabase';
+            }
+            if (id.includes('node_modules/react-icons/')) {
+              return 'icons';
+            }
+          },
         }
       },
-      // Chunk size warning limit
       chunkSizeWarningLimit: 1000,
     }
   };

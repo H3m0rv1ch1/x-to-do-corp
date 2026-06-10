@@ -10,7 +10,7 @@ import { WelcomeGuide } from '@/components/modals';
 
 interface TodoListProps {}
 
-const EmptyState: React.FC<{filter: string, searchQuery: string}> = ({ filter, searchQuery }) => {
+const EmptyState: React.FC<{filter: 'all' | 'pending' | 'completed' | 'important', searchQuery: string}> = ({ filter, searchQuery }) => {
   if (searchQuery) {
     return (
         <div className="text-center p-8 text-[rgba(var(--foreground-secondary-rgb))]">
@@ -164,7 +164,7 @@ const TodoList: React.FC<TodoListProps> = () => {
         if (isWelcomeVisible && filter === 'all' && !searchQuery) {
             return <WelcomeGuide onDismiss={handleDismissWelcome} onGetStarted={handleGetStarted} />;
         }
-        return <EmptyState filter={filter} searchQuery={searchQuery} />;
+        return <EmptyState filter={filter as 'all' | 'pending' | 'completed' | 'important'} searchQuery={searchQuery} />;
     }
     return (
       <div>

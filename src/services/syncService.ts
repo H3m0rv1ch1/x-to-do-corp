@@ -113,7 +113,6 @@ export const syncService = {
 
     startAutoSync() {
         window.addEventListener('online', () => {
-            console.log('Online: triggering sync...');
             this.pushChanges();
             this.pullChanges();
         });
